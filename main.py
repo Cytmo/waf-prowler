@@ -33,8 +33,8 @@ args = argparse.parse_args()
 if args.wsl == True:
     logger.info(TAG+"==>Using wsl")
     # get windows host ip by running cat /etc/resolv.conf | grep nameserver
-    windows_host_ip = os.popen("cat /etc/resolv.conf | grep nameserver").read().split()[1]
-    args.host = windows_host_ip.strip()
+    # windows_host_ip = os.popen("cat /etc/resolv.conf | grep nameserver").read().split()[1]
+    # args.host = windows_host_ip.strip()
     logger.info(TAG+"==>windows host ip: "+args.host)
 
 # if test
