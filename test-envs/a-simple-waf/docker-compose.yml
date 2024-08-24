@@ -1,0 +1,80 @@
+version: '3'
+
+services:
+  mysql:
+    build:
+      context: ./mysql
+      dockerfile: Dockerfile
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: vulnerable_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app-network
+
+  web_php_5:
+    build:
+      context: ./web_php_5
+      dockerfile: Dockerfile
+    container_name: web_php_5
+    ports:
+      - "8001:80"
+    depends_on:
+      - mysql
+    networks:
+      app-network:
+        aliases:
+          - web_php_5
+
+  web_php_7:
+    build:
+      context: ./web_php_7
+      dockerfile: Dockerfile
+    container_name: web_php_7
+    ports:
+      - "8002:80"
+    depends_on:
+      - mysql
+    networks:
+      app-network:
+        aliases:
+          - web_php_7
+
+
+  web_java:
+    build:
+      context: ./web_java
+      dockerfile: Dockerfile
+    container_name: web_java
+    ports:
+      - "8003:8080"
+    depends_on:
+      - mysql
+    networks:
+      app-network:
+        aliases:
+          - web_java
+
+  gowaf:
+    build:
+      context: ./gowaf
+      dockerfile: Dockerfile
+    ports:
+      - "9001:9001"
+      - "9002:9002"
+      - "9003:9003"
+    depends_on:
+      - web_php_5
+      - web_php_7
+      - web_java
+    networks:
+      - app-network
+
+networks:
+  app-network:
+
+volumes:
+  mysql_data:

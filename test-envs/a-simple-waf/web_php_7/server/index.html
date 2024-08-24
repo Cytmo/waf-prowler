@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vulnerability Testing - php 7.x</title>
+</head>
+<body>
+    <h1>Vulnerability Testing Index - php 7.x</h1>
+    <ul>
+        <!-- RCE Links -->
+        <li><a href="rce_get?cmd=ls">Remote Code Execution (GET)</a></li>
+        <li><form action="rce_post" method="post">
+            Test Remote Code Execution (POST):
+            <input type="text" name="cmd" placeholder="Enter command">
+            <button type="submit">Submit</button>
+        </form></li>
+        <li><form action="rce_json" method="post" class="json-form">
+            Test Remote Code Execution (JSON):
+            <input type="text" name="cmd" placeholder="Enter command">
+            <button type="submit">Submit</button>
+        </form></li>
+
+        <!-- SQL Injection Links -->
+        <li><a href="sqli_get?id=1">SQL Injection (GET)</a></li>
+        <li><form action="sqli_post" method="post">
+            Test SQL Injection (POST):
+            <input type="text" name="id" placeholder="Enter ID">
+            <button type="submit">Submit</button>
+        </form></li>
+        <li><form action="sqli_json" method="post" class="json-form">
+            Test SQL Injection (JSON):
+            <input type="text" name="id" placeholder="Enter ID">
+            <button type="submit">Submit</button>
+        </form></li>
+
+        <!-- File Upload Link (form) -->
+        <li>
+            <form action="upload" method="post" enctype="multipart/form-data">
+                Test File Upload: 
+                <input type="file" name="file">
+                <button type="submit">Upload</button>
+            </form>
+        </li>
+    </ul>
+    <script>
+        document.querySelectorAll('.json-form').forEach(form => {
+            form.addEventListener('submit', event => {
+                event.preventDefault();
+                let data = {};
+                new FormData(form).forEach((value, key) => { data[key] = value; });
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.text())
+                .then(text => alert(text))
+                .catch(error => console.error('Error:', error));
+            });
+        });
+    </script>
+</body>
+</html>

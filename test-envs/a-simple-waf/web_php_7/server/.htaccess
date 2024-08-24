@@ -1,0 +1,5 @@
+RewriteEngine On
+
+# 为PHP脚本去除.php扩展
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule !.*\.php$ %{REQUEST_FILENAME}.php [L]
