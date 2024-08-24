@@ -16,7 +16,7 @@ argparse = argparse.ArgumentParser()
 # false 默认单进程 true 多进程
 argparse.add_argument("-mp", "--multiprocess", default="false",
                       help="if use multiprocess")
-
+argparse.add_argument("--test", help="if use test payload",action="store_true")
 argparse.add_argument("-r", "--raw", default="config/payload",
                       help="Path to raw payload files")
 
@@ -36,6 +36,11 @@ if args.wsl == True:
     windows_host_ip = os.popen("cat /etc/resolv.conf | grep nameserver").read().split()[1]
     args.host = windows_host_ip.strip()
     logger.info(TAG+"==>windows host ip: "+args.host)
+
+# if test
+if args.test == True:
+    args.raw = "test/test_payloads"
+    logger.info(TAG+"==>Using test payload")
 
 def main():
     # read raw payload folder

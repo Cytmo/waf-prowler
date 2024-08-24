@@ -21,6 +21,10 @@ def get_unformatted_payload(json_path):
                 'An error occurred while loading file {}: file not in JSON format ({})'
                 .format(json_path, e)
             )
+            logger.warning(
+                'An error occurred while loading file {}: file not in JSON format ({})'
+                .format(json_path, e)
+            )
             return {}
 
     # url

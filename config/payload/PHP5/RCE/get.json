@@ -1,5 +1,5 @@
 {
-  "url": "http://waf:9001/rce_get?cmd=cat%20/etc/passwd",
+  "url": "http://waf:9001/rce_get?cmd=lscat%20/etc/passwd",
   "headers": {
     "Host": "waf:9001",
     "Upgrade-Insecure-Requests": "1",

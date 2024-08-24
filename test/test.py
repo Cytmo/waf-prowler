@@ -1,7 +1,7 @@
 import requests
 
 headers = {
-    'Host': 'waf:9001',
+    'Host': '10.255.255.254:8001',
     'Upgrade-Insecure-Requests': '1',
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -10,5 +10,5 @@ headers = {
     'Connection': 'close',
 }
 
-response = requests.get('http://waf:9001/rce_get?cmd=cat%20/etc/passwd', headers=headers, verify=False)
+response = requests.get('http://10.255.255.254:8001/rce_get?cmd=cat%20/etc/passwd', headers=headers, verify=False)
 print(response)
