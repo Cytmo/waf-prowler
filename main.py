@@ -47,8 +47,13 @@ def main():
     payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload(args.raw)
     # mutant payloads
 
-    # send payloads
+    # send payloads to address without waf
     results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host,args.port,payloads)
+    formatted_results = json.dumps(results, indent=4,ensure_ascii=False)
+    logger.debug(TAG + "==>results: " + formatted_results)
+
+    # send payloads to address with waf
+    results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host,args.port,payloads,waf=True)
     formatted_results = json.dumps(results, indent=4,ensure_ascii=False)
     logger.debug(TAG + "==>results: " + formatted_results)
     pass

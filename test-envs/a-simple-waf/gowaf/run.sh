@@ -1,4 +1,5 @@
 #!/bin/bash
+chmod 777 /root/gowaf
 
 /root/gowaf -port 9001 -backend http://web_php_5:80 &
 /root/gowaf -port 9002 -backend http://web_php_7:80 &
