@@ -1,8 +1,12 @@
 # waf-prowler
-## INSTALL REQUIREMENTS
+## REQUIREMENTS
 `pip install -r requirements.txt`
-## RUN TESTS
-WSL2
+## RUN 
+### SET UP TEST ENVS
+Use `set_test_env.sh` to set up the test environments
+### RUN TESTS
+- WSL2
 `python3 main.py -w`
-OTHER LINUX
+
+- OTHER LINUX
 `python3 main.py --host localhost`
