@@ -1,7 +1,9 @@
 import requests
 from utils.prowler_mutant import prowler_begin_to_mutant_payloads
 from utils.logUtils import LoggerSingleton
+from utils.recordResUtils import JSONLogger
 logger = LoggerSingleton().get_logger()
+resLogger = JSONLogger()
 TAG = "prowler_parse_raw_payload.py: "
 def process_requests(headers, url, method, data=None, files=None):
 
@@ -84,6 +86,8 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False):
                 results.append(result)
                 if result.get('response_status_code') == 200:
                     logger.warning(TAG + "==>url: " + result['url'] + " success after mutant")
+                    # 把success的payload记录到结果文件
+                    resLogger.log_result(mutant_payload)
                     break
                 else:
                     logger.warning(TAG + "==>url: " + result['url'] + " failed after mutant " + " response: " + result['response_text'])
