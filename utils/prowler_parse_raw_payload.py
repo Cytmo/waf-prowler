@@ -65,22 +65,31 @@ def get_unformatted_payload(json_path):
 
 
 # 逐层读取文件夹中的多个json文件
-def get_payloads_from_folder(folder_path):
+def get_payloads_from_folder(folder_path,plain=False):
     # init
     payloads = []
-
     # read all files in the folder
     for root, dirs, files in os.walk(folder_path):
         for file in files:
             logger.debug(TAG + "file: {}".format(file))
-            if file.endswith('.json'):
-                # skip empty files
+            if plain:
                 if os.stat(os.path.join(root, file)).st_size == 0:
                     continue
                 # get the full path of the file
                 file_path = os.path.join(root, file)
                 # get the formatted payload
-                payloads.append(get_unformatted_payload(file_path))
+                with open(file_path) as f:
+                    payload = f.read()
+                payloads.append(payload)
+            else:
+                if file.endswith('.json'):
+                    # skip empty files
+                    if os.stat(os.path.join(root, file)).st_size == 0:
+                        continue
+                    # get the full path of the file
+                    file_path = os.path.join(root, file)
+                    # get the formatted payload
+                    payloads.append(get_unformatted_payload(file_path))
 
     # return payloads
     return payloads
@@ -88,8 +97,12 @@ def get_payloads_from_folder(folder_path):
 
 
 
-def prowler_begin_to_sniff_payload(path):
+def prowler_begin_to_sniff_payload(path,plain=False):
     # get payloads from folder
+    if plain:
+        payloads = get_payloads_from_folder(path,plain=True)
+        logger.info(TAG + "payloads: {}".format(payloads))
+        return payloads
     payloads = get_payloads_from_folder(path)
     payload_log_output = json.dumps(payloads, indent=4, ensure_ascii=False)
     logger.info(TAG + "payloads: {}".format(payload_log_output))
