@@ -31,7 +31,7 @@ mutant_methods = [mutant_methods_modify_content_type,mutant_methods_fake_content
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 
-def prowler_begin_to_mutant_payloads(headers, url, method, data,files):
+def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None):
     logger.info(TAG + "==>begin to mutant payloads")
     mutant_payloads = []
     for mutant_method in mutant_methods:
