@@ -115,7 +115,7 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False):
                 if result.get('response_status_code') == 200:
                     logger.warning(TAG + "==>url: " + result['url'] + " success after mutant")
                     # 把success的payload记录到结果文件
-                    resLogger.log_result(mutant_payload)
+                    # resLogger.log_result(mutant_payload)
                     break
                 else:
                     logger.warning(TAG + "==>url: " + result['url'] + " failed after mutant " + " response: " + result['response_text'])
