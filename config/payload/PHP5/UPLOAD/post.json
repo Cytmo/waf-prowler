@@ -12,11 +12,9 @@
     "Connection": "close"
   },
   "files": {
-    "file": {
-      "filename": "1.php",
-      "content": "123",
-      "content-type": "text/php"
+    "file":"('1.php', '123', 'text/php')"
+    
     }
-  },
+  ,
   "verify": false
 }

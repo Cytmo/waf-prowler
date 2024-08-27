@@ -1,5 +1,5 @@
 {
-  "url": "http://localhost:8001/rce_get?cmd=lscat%20/etc/passwd",
+  "url": "http://localhost:8001/rce_get?cmd=cat%20/etc/passwd",
   "headers": {
     "Host": "localhost:8001",
     "Upgrade-Insecure-Requests": "1",

@@ -42,10 +42,21 @@ def get_unformatted_payload(json_path):
     verify = jdata.get('verify', None)
     ret['verify'] = verify if isinstance(verify, bool) else False
 
+    files = jdata.get('files', None)
+    ret['files'] = None if not files else files
     # determine whether this is a POST or GET request
     if data:
-        ret['data'] = data
-        ret['method'] = 'POST'
+        if "application/json" in headers['Content-Type']:
+            ret['method'] = 'JSON_POST'
+            ret['data'] = data
+        elif "multipart/form-data" in headers['Content-Type']:
+            ret['method'] = 'UPLOAD'
+            ret['data'] = data
+        else:
+            ret['data'] = data
+            ret['method'] = 'POST'
+    elif files:
+        ret['method'] = 'UPLOAD'
     else:
         ret['method'] = 'GET'
 
@@ -73,6 +84,9 @@ def get_payloads_from_folder(folder_path):
 
     # return payloads
     return payloads
+
+
+
 
 def prowler_begin_to_sniff_payload(path):
     # get payloads from folder

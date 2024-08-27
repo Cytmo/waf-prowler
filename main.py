@@ -46,16 +46,25 @@ def main():
     # read raw payload folder
     payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload(args.raw)
     # mutant payloads
-
+    
     # send payloads to address without waf
     results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host,args.port,payloads)
     formatted_results = json.dumps(results, indent=4,ensure_ascii=False)
     logger.debug(TAG + "==>results: " + formatted_results)
-
+    for result in results:
+        if result['response_status_code'] == 200:
+            logger.warning(TAG + "==>url: " + result['url'] + " success")
+        else:
+            logger.warning(TAG + "==>url: " + result['url'] + " failed" + " response: " + result['response_text'])
     # send payloads to address with waf
     results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host,args.port,payloads,waf=True)
     formatted_results = json.dumps(results, indent=4,ensure_ascii=False)
     logger.debug(TAG + "==>results: " + formatted_results)
+    for result in results:
+        if result['response_status_code'] == 200:
+            logger.warning(TAG + "==>url: " + result['url'] + " success")
+        else:
+            logger.warning(TAG + "==>url: " + result['url'] + " failed" + " response: " + result['response_text'])
     pass
 
 
