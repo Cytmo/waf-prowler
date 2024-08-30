@@ -57,6 +57,13 @@ def process_requests(headers, url, method, data=None, files=None):
 
 def run_payload(payload, host, port, waf=False):
     url = payload['url']
+    # for not mutanted payload, copy url as original url
+    # for mutanted payload, use 'original_url' to display result
+    if 'original_url' not in payload:
+        original_url = url
+    else:
+        original_url = payload['original_url']
+    # todo: more sophiscated way to obtain waf payload
     if waf:
         url = url.replace("8001", "9001")
     headers = payload['headers']
@@ -73,6 +80,7 @@ def run_payload(payload, host, port, waf=False):
         logger.debug(TAG + "==>response: " + str(response.text))
         result = {
             'url': url,
+            'original_url': original_url,
             'payload': str(payload),
             'response_status_code': response.status_code,
             'response_text': response.text
@@ -80,6 +88,7 @@ def run_payload(payload, host, port, waf=False):
     else:
         result = {
             'url': url,
+            'original_url': original_url,
             'payload': str(payload),
             'response_status_code': "Error",
             'response_text': "Error"
