@@ -22,6 +22,7 @@ def send_requests(prep_request):
     # 关闭连接
     conn.close()
     return response
+
 def process_requests(headers, url, method, data=None, files=None):
     if method == 'JSON_POST':
         method = 'POST'

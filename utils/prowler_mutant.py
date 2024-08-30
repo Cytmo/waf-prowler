@@ -40,31 +40,41 @@ def mutant_methods_fake_content_type(headers,url,method,data,files):
             })
 
     return mutant_payloads
+import random
 
-def random_case_switch(text):
+def random_case(text):
+    """Randomly changes the case of each character in the text."""
     return ''.join([c.upper() if random.choice([True, False]) else c.lower() for c in text])
 
+def insert_comments(text):
+    """Insert random comments or spaces in the text to break up keywords."""
+    parts = list(text)
+    for i in range(1, len(parts) - 1):
+        if random.choice([True, False]):
+            parts[i] = '/*' + parts[i] + '*/'
+    return ''.join(parts)
 
-def mutant_methods_case_switching(headers, url, method, data, files):
-    logger.info(TAG + "==>mutant_methods_case_switching")
+def mutant_methods_case_and_comment_obfuscation(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_case_and_comment_obfuscation")
     logger.debug(TAG + "==>headers: " + str(headers))
 
-    # Create a list to hold the mutated payloads
     mutant_payloads = []
 
-    # Apply random case switching to the URL
-    # mutated_url = random_case_switch(url)
-    # don't mutate the url
-    mutated_url = url
-    # Apply random case switching to the data if it's a string
+    # Apply random case and comment obfuscation to the URL
+    parsed_url = urllib.parse.urlparse(url)
+    obfuscated_path = random_case(insert_comments(parsed_url.path))
+    obfuscated_query = random_case(insert_comments(parsed_url.query))
+    mutated_url = urllib.parse.urlunparse(parsed_url._replace(path=obfuscated_path, query=obfuscated_query))
+
+    # Apply the same to data if it's a string
     mutated_data = data
     if isinstance(data, str):
-        mutated_data = random_case_switch(data)
+        mutated_data = random_case(insert_comments(data))
 
-    # Apply random case switching to file names if present
+    # Apply the same to file names if present
     mutated_files = files
     if files:
-        mutated_files = {name: (random_case_switch(filename), file) for name, (filename, file) in files.items()}
+        mutated_files = {name: (random_case(insert_comments(filename)), file) for name, (filename, file) in files.items()}
 
     # Create the mutated payload
     mutant_payloads.append({
@@ -217,35 +227,66 @@ def mutant_methods_line_breaks(headers, url, method, data, files):
 
     return mutant_payloads
 
-# 通用载荷变异方法开关
-mutant_methods_enabled = {
-    "mutant_methods_modify_content_type": True,
-    "mutant_methods_fake_content_type": True,
-    "mutant_methods_case_switching": False,
-    "mutant_methods_url_encoding": True,
-    "mutant_methods_unicode_normalization": False,
-    "mutant_methods_line_breaks": True
-}
+def mutant_methods_for_test_use(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_for_test_use")
+    # logger.debug(TAG + "==>headers: " + str(headers))
 
-# 所有变异方法的字典
-all_mutant_methods = {
-    "mutant_methods_modify_content_type": mutant_methods_modify_content_type,
-    "mutant_methods_fake_content_type": mutant_methods_fake_content_type,
-    "mutant_methods_case_switching": mutant_methods_case_switching,
-    "mutant_methods_url_encoding": mutant_methods_url_encoding,
-    "mutant_methods_unicode_normalization": mutant_methods_unicode_normalization,
-    "mutant_methods_line_breaks": mutant_methods_line_breaks
-}
+    mutant_payloads = []
+    if data:
+        print(data)
+        # replace cmd to c%0Amd in data
+        data = data.replace('cmd', 'c%0Amd')
+        data = data.replace('passwd', 'passw%0Ad')
+        data = data.replace('SELECT','se/*comment*/lect')
+        print(data)
 
-# 初始化启用的变异方法
-mutant_methods = [
-    method for name, method in all_mutant_methods.items() 
-    if mutant_methods_enabled.get(name, False)
-]
+        # exit()
+    url = url.replace('cmd', 'c%0Amd')
+    url = url.replace('SELECT','se/*comment*/lect')
+    url = url.replace('passwd', 'passw%0Ad')
+    print(url)
+    mutant_payloads.append({
+        'headers': headers,
+        'url': url,
+        'method': method,
+        'data': data,
+        'files': files
+    })
+    logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
+    return mutant_payloads
+
+
+# # 通用载荷变异方法开关
+# mutant_methods_enabled = {
+#     "mutant_methods_modify_content_type": True,
+#     "mutant_methods_fake_content_type": True,
+#     "mutant_methods_case_switching": False,
+#     "mutant_methods_url_encoding": True,
+#     "mutant_methods_unicode_normalization": False,
+#     "mutant_methods_line_breaks": True
+# }
+
+# # 所有变异方法的字典
+# all_mutant_methods = {
+#     "mutant_methods_modify_content_type": mutant_methods_modify_content_type,
+#     "mutant_methods_fake_content_type": mutant_methods_fake_content_type,
+#     "mutant_methods_case_switching": mutant_methods_case_switching,
+#     "mutant_methods_url_encoding": mutant_methods_url_encoding,
+#     "mutant_methods_unicode_normalization": mutant_methods_unicode_normalization,
+#     "mutant_methods_line_breaks": mutant_methods_line_breaks
+# }
+
+# # 初始化启用的变异方法
+# mutant_methods = [
+#     method for name, method in all_mutant_methods.items() 
+#     if mutant_methods_enabled.get(name, False)
+# ]
 
 # 通用载荷变异方法
-mutant_methods = [mutant_methods_modify_content_type, mutant_methods_fake_content_type, mutant_methods_case_switching,
-                  mutant_methods_url_encoding, mutant_methods_unicode_normalization, mutant_methods_line_breaks]
+# mutant_methods = [mutant_methods_modify_content_type, mutant_methods_fake_content_type, mutant_methods_case_and_comment_obfuscation,
+#                   mutant_methods_url_encoding, mutant_methods_unicode_normalization, mutant_methods_line_breaks,
+#                   mutant_methods_for_test_use]
+mutant_methods = [mutant_methods_for_test_use]
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 
