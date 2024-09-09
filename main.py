@@ -55,19 +55,30 @@ def main():
     logger.debug(TAG + "==>results: " + formatted_results)
     for result in results:
         if result['response_status_code'] == 200:
-            logger.warning(TAG + "==>url: " + result['url'] + " success")
+            logger.info(TAG + "==>url: " + result['url'] + " success")
         else:
-            logger.warning(TAG + "==>url: " + result['url'] + " failed" + " response: " + result['response_text'])
+            logger.info(TAG + "==>url: " + result['url'] + " failed" + " response: " + result['response_text'])
     # send payloads to address with waf
     results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host,args.port,payloads,waf=True)
     formatted_results = json.dumps(results, indent=6,ensure_ascii=False)
     logger.debug(TAG + "==>results: " + formatted_results)
     for result in results:
         if result['response_status_code'] == 200:
-            logger.warning(TAG + "==>url: " + result['url'] + " success")
+            logger.info(TAG + "==>url: " + result['url'] + " success")
         else:
-            logger.warning(TAG + "==>url: " + result['url'] + " failed" + " response: " + result['response_text'])
-    pass
+            logger.info(TAG + "==>url: " + result['url'] + " failed" + " response: " + result['response_text'])
+    # 统计每个url的尝试次数和是否绕过
+    url_attempts = {}
+    for result in results:
+        url = result['original_url']
+        if url not in url_attempts:
+            url_attempts[url] = {'attempts': 0, 'success': 0}
+        url_attempts[url]['attempts'] += 1
+        if result['response_status_code'] == 200:
+            url_attempts[url]['success'] += 1
+
+    for url, attempts in url_attempts.items():
+        logger.warning(TAG + "==>url: " + url + " attempts: " + str(attempts['attempts']) + " success: " + str(attempts['success']))
 
 
 
