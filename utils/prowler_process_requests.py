@@ -110,7 +110,7 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False):
             for mutant_payload in mutant_payloads:
                 result = run_payload(mutant_payload, host, port, waf)
                 formatted_results = json.dumps(result, indent=4,ensure_ascii=False)
-                print(formatted_results)
+                logger.debug(TAG + "==>results: " + formatted_results)
                 results.append(result)
                 if result.get('response_status_code') == 200:
                     logger.warning(TAG + "==>url: " + result['url'] + " success after mutant")
