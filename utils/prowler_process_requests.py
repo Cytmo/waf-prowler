@@ -79,8 +79,8 @@ def run_payload(payload, host, port, waf=False):
     else:
         original_url = payload['original_url']
     # todo: more sophiscated way to obtain waf payload
-    if waf:
-        url = url.replace("8001", "9004")
+    # if waf:
+    #     url = url.replace("8001", "9004")
     headers = payload['headers']
     data = payload.get('data', None)
     files = payload.get('files', None)
