@@ -24,6 +24,14 @@ def mutant_methods_modify_content_type(headers, url, method, data, files):
             })
     return mutant_payloads
 
+# 协议未覆盖绕过
+# 在 http 头里的 Content-Type 提交表单支持四种协议：
+# •application/x-www-form-urlencoded -编码模式
+# •multipart/form-data -文件上传模式
+# •text/plain -文本模式
+# •application/json -json模式
+# 文件头的属性是传输前对提交的数据进行编码发送到服务器。其中 multipart/form-data 
+# 表示该数据被编码为一条消息,页上的每个控件对应消息中的一个部分。所以，当 waf 没有规则匹配该协议传输的数据时可被绕过。
 def mutant_methods_fake_content_type(headers,url,method,data,files):
     logger.info(TAG + "==>mutant_methods_fake_content_type")
     logger.debug(TAG + "==>headers: " + str(headers))
@@ -285,6 +293,34 @@ def mutant_methods_multipart_boundary(headers, url, method, data, files):
         })
     return mutant_payloads
 
+# 资源限制角度绕过WAF
+# 超大数据包绕过
+# 这是众所周知、而又难以解决的问题。如果HTTP请求POST BODY太大，检测所有的内容，WAF集群消耗太大的CPU、内存资源。因此许多WAF只检测前面的
+# 几K字节、1M、或2M。对于攻击者而然，只需要在POST BODY前面添加许多无用数据，把攻击payload放在最后即可绕过WAF检测。
+def mutant_methods_add_padding(headers, url, method, data, files):
+    """ 绕过WAF的超大数据包检测"""
+    logger.info(TAG + "==>mutant_methods_add_padding")
+    logger.debug(TAG + "==>headers: " + str(headers))
+    mutant_payloads = []
+    padding_data = 'x' * 1024  * 5  # 5 MB 的无用数据
+    if data:
+        data += padding_data
+    else:
+        data = padding_data
+    mutant_payloads.append({
+        'headers': headers,
+        'url': url,
+        'method': method,
+        'data': data,
+        'files': files
+    })
+    return mutant_payloads
+
+
+
+
+
+
 
 # # 通用载荷变异方法开关
 # mutant_methods_enabled = {
@@ -315,9 +351,9 @@ def mutant_methods_multipart_boundary(headers, url, method, data, files):
 # 通用载荷变异方法
 # mutant_methods = [mutant_methods_modify_content_type, mutant_methods_fake_content_type, mutant_methods_case_and_comment_obfuscation,
 #                   mutant_methods_url_encoding, mutant_methods_unicode_normalization, mutant_methods_line_breaks,
-#                   mutant_methods_for_test_use]
+#                   mutant_methods_multipart_boundary]
 # mutant_methods = [mutant_methods_for_test_use]
-mutant_methods = [mutant_methods_multipart_boundary]
+mutant_methods = [mutant_methods_add_padding]
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 

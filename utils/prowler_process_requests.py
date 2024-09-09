@@ -14,8 +14,22 @@ def send_requests(prep_request):
     url = urlparse(prep_request.url)
     logger.debug(TAG + "==>url: " + str(url))
     conn = http.client.HTTPConnection(url.netloc)
-    conn.request(prep_request.method, prep_request.url, headers=prep_request.headers, body=prep_request.body)
-    response = conn.getresponse()
+    try:
+        conn.request(prep_request.method, prep_request.url, headers=prep_request.headers, body=prep_request.body)
+    except Exception as e:
+        logger.error(TAG + "==>error: " + str(e))
+        response = requests.Response()
+        # response.text = None
+        # response.status_code = None
+        return response
+    try:
+        response = conn.getresponse()
+    except Exception as e:
+        logger.error(TAG + "==>error: " + str(e))
+        response = requests.Response()
+        # response.text = None
+        # response.status_code = None
+        return response
     print(f"Response status: {response.status} {response.reason}")
     response.text = response.reason
     response.status_code = response.status
@@ -66,7 +80,7 @@ def run_payload(payload, host, port, waf=False):
         original_url = payload['original_url']
     # todo: more sophiscated way to obtain waf payload
     if waf:
-        url = url.replace("8001", "9001")
+        url = url.replace("8001", "9004")
     headers = payload['headers']
     data = payload.get('data', None)
     files = payload.get('files', None)
@@ -98,7 +112,7 @@ def run_payload(payload, host, port, waf=False):
 
 
 
-def prowler_begin_to_send_payloads(host,port,payloads,waf=False):
+def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_ENABLED=False):
     results = []
     
     for payload in payloads:
@@ -115,18 +129,21 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False):
             files = payload.get('files', None)
             verify = payload.get('verify', False)
             method = payload['method']
+
             processed_req = process_requests(headers, url, method, data=data, files=files)
-            mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body)
-            for mutant_payload in mutant_payloads:
-                result = run_payload(mutant_payload, host, port, waf)
-                formatted_results = json.dumps(result, indent=4,ensure_ascii=False)
-                logger.debug(TAG + "==>results: " + formatted_results)
-                results.append(result)
-                if result.get('response_status_code') == 200:
-                    logger.warning(TAG + "==>url: " + result['url'] + " success after mutant")
-                    # 把success的payload记录到结果文件
-                    # resLogger.log_result(mutant_payload)
-                    break
-                else:
-                    logger.warning(TAG + "==>url: " + result['url'] + " failed after mutant " + " response: " + result['response_text'])
+            logger.info(TAG + "==>PAYLOAD_MUTANT_ENABLED: " + str(PAYLOAD_MUTANT_ENABLED))
+            if PAYLOAD_MUTANT_ENABLED:
+                mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body)
+                for mutant_payload in mutant_payloads:
+                    result = run_payload(mutant_payload, host, port, waf)
+                    formatted_results = json.dumps(result, indent=4,ensure_ascii=False)
+                    logger.debug(TAG + "==>results: " + formatted_results)
+                    results.append(result)
+                    if result.get('response_status_code') == 200:
+                        logger.warning(TAG + "==>url: " + result['url'] + " success after mutant")
+                        # 把success的payload记录到结果文件
+                        # resLogger.log_result(mutant_payload)
+                        break
+                    else:
+                        logger.warning(TAG + "==>url: " + result['url'] + " failed after mutant " + " response: " + result['response_text'])
     return results

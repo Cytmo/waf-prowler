@@ -30,11 +30,24 @@ def get_unformatted_payload(json_path):
     # url
     url = jdata.get('url', None)
     ret['url'] = None if not url else url
-
+    # if url is localhost, change it to 127.0.0.1
+    # if ret['url']:
+    #     if 'localhost' in ret['url']:
+    #         ret['url'] = ret['url'].replace('localhost', '127.0.0.1')
     # headers
     headers = jdata.get('headers', None)
     ret['headers'] = None if not headers else headers
-
+    
+    # remove host , origin , referer, content-length from headers
+    if ret['headers']:
+        if 'Host' in ret['headers']:
+            del ret['headers']['Host']
+        if 'Origin' in ret['headers']:
+            del ret['headers']['Origin']
+        if 'Referer' in ret['headers']:
+            del ret['headers']['Referer']
+        if 'Content-Length' in ret['headers']:
+            del ret['headers']['Content-Length']
     # data
     data = jdata.get('data', None)
 
