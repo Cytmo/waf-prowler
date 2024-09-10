@@ -355,7 +355,9 @@ def mutant_methods_add_padding(headers, url, method, data, files):
 #                   mutant_methods_url_encoding, mutant_methods_unicode_normalization, mutant_methods_line_breaks,
 #                   mutant_methods_multipart_boundary]
 # mutant_methods = [mutant_methods_for_test_use]
-mutant_methods = [mutant_methods_add_padding]
+mutant_methods = [mutant_methods_add_padding,mutant_methods_modify_content_type, mutant_methods_fake_content_type, mutant_methods_case_and_comment_obfuscation,
+                   mutant_methods_url_encoding, mutant_methods_unicode_normalization, mutant_methods_line_breaks,
+                   mutant_methods_multipart_boundary]
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 
@@ -365,6 +367,8 @@ def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None):
     for mutant_method in mutant_methods:
         logger.info(TAG + "==>mutant method: " + str(mutant_method))
         sub_mutant_payloads = mutant_method(headers, url, method, data, files)
+        for sub_mutant_payload in sub_mutant_payloads:
+            sub_mutant_payload['mutant_method'] = mutant_method.__name__
         mutant_payloads.extend(sub_mutant_payloads)
     if method == 'UPLOAD':
         for mutant_upload_method in mutant_methods_dedicated_to_upload:

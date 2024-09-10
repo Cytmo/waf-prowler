@@ -44,7 +44,8 @@ class JSONLogger:
             
             with open(self.file_name, 'r') as f:
                 existing_data = json.load(f)
-            
+            #todo
+            url = url.replace('9001','8001').replace('9002','8002').replace('9003','8003')
             # 查找具有相同 URL 的条目
             for entry in existing_data:
                 if entry['url'] == url:

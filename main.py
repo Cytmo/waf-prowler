@@ -69,7 +69,7 @@ def main():
         if result['response_status_code'] == 200:
             logger.info(TAG + "==>url: " + result['url'] + " success")
         else:
-            logger.info(TAG + "==>url: " + result['url'] + " failed" + " response: " + result['response_text'])
+            logger.info(TAG + "==>url: " + result['url'] + " failed" + " response: " + str(result['response_text']))
     # 统计每个url的尝试次数和是否绕过
     url_attempts = {}
     for result in results:
@@ -77,7 +77,7 @@ def main():
         if url not in url_attempts:
             url_attempts[url] = {'attempts': 0, 'success': 0}
         url_attempts[url]['attempts'] += 1
-        if result['response_status_code'] == 200:
+        if result['success'] == True:
             url_attempts[url]['success'] += 1
 
     for url, attempts in url_attempts.items():

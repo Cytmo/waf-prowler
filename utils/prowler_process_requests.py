@@ -80,6 +80,9 @@ def handle_text_response(response):
 def parse_response(response):
     content_type = response.getheader('Content-Type')
     logger.debug(TAG + "==>content_type: " + str(content_type))
+    if content_type is None:
+        logger.warning(TAG + "==>响应头中没有 Content-Type 字段")
+        return "响应头中没有 Content-Type 字段, 解析响应失败"
     if 'application/json' in content_type:
         data = handle_json_response(response)
     elif 'text/html' in content_type:
@@ -180,6 +183,8 @@ def run_payload(payload, host, port, waf=False):
         original_url = url
     else:
         original_url = payload['original_url']
+        if waf:
+            original_url = original_url.replace("8001", "9001").replace("8002", "9002").replace("8003", "9003")
 
     headers = payload['headers']
     data = payload.get('data', None)
@@ -198,7 +203,8 @@ def run_payload(payload, host, port, waf=False):
             'original_url': original_url,
             'payload': str(payload),
             'response_status_code': response.status_code,
-            'response_text': response.text
+            'response_text': response.text,
+            'success':''
         }
     else:
         result = {
@@ -206,7 +212,8 @@ def run_payload(payload, host, port, waf=False):
             'original_url': original_url,
             'payload': str(payload),
             'response_status_code': "Error",
-            'response_text': "Error"
+            'response_text': "Error",
+            'success':''
         }
     return result
 
@@ -218,11 +225,15 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
     for payload in payloads:
         # get the payload data
         result = run_payload(payload, host, port, waf)
-        results.append(result)
+
         if result.get('response_status_code') == 200:
             logger.warning(TAG + "==>url: " + result['url'] + " success")
+            result['success'] = True
+            results.append(result)
             resLogger.log_result( result)
         else:
+            result['success'] = False
+            results.append(result)
             logger.warning(TAG + "==>url: " + result['url'] + " failed" + " response: " + result['response_text'])
             url = payload['url']
             headers = payload['headers']
@@ -230,7 +241,6 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
             files = payload.get('files', None)
             verify = payload.get('verify', False)
             method = payload['method']
-
             processed_req = process_requests(headers, url, method, data=data, files=files)
             logger.info(TAG + "==>PAYLOAD_MUTANT_ENABLED: " + str(PAYLOAD_MUTANT_ENABLED))
             if PAYLOAD_MUTANT_ENABLED:
@@ -239,15 +249,15 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                     result = run_payload(mutant_payload, host, port, waf)
                     formatted_results = json.dumps(result, indent=4,ensure_ascii=False)
                     logger.debug(TAG + "==>results: " + formatted_results)
-                    results.append(result)
-                    if result.get('response_status_code') == 200:
-                        if resLogger.check_response_text(result['url'],result['response_text']):
-                            logger.warning(TAG + "==>url: " + result['url'] + " success after mutant")
-                            # 把success的payload记录到结果文件
-                            resLogger.log_result(result)
-                            break
-                        else:
-                            logger.warning(TAG + "==>url: " + result['url'] + " response test check failed after mutant " + " response: " + str(result['response_text']))
+                    if result.get('response_status_code') == 200 and resLogger.check_response_text(result['url'],result['response_text']):
+                        logger.warning(TAG + "==>url: " + result['url'] + " success after mutant")
+                        result['success'] = True
+                        results.append(result)
+                        # 把success的payload记录到结果文件
+                        resLogger.log_result(result)
+                        break
                     else:
+                        result['success'] = False
+                        results.append(result)
                         logger.warning(TAG + "==>url: " + result['url'] + " failed after mutant " + " response: " + str(result['response_text']))
     return results
