@@ -303,6 +303,8 @@ def mutant_methods_add_padding(headers, url, method, data, files):
     logger.debug(TAG + "==>headers: " + str(headers))
     mutant_payloads = []
     padding_data = 'x' * 1024  * 5  # 5 MB 的无用数据
+    if isinstance(data, bytes) and isinstance(padding_data, str):
+        padding_data = padding_data.encode()  # 将 padding_data 转换为字节串
     if data:
         data += padding_data
     else:

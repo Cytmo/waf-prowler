@@ -5,6 +5,7 @@ __pycache__/
 # logs
 *.log
 todo.md
+results/
 # C extensions
 *.so
 

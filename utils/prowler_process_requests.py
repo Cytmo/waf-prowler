@@ -1,14 +1,102 @@
 import json
+import os
 import requests
 from utils.prowler_mutant import prowler_begin_to_mutant_payloads
 from utils.logUtils import LoggerSingleton
 from utils.recordResUtils import JSONLogger
 import http.client
+import chardet
+import gzip
+from bs4 import BeautifulSoup
+import io
+import xml.etree.ElementTree as ET
 from urllib.parse import urlparse
 from requests.models import Request, PreparedRequest
 logger = LoggerSingleton().get_logger()
 resLogger = JSONLogger()
 TAG = "prowler_process_requests.py: "
+
+
+def handle_json_response(response):
+    try:
+        data = json.loads(response.read().decode('utf-8'))
+        return data
+    except json.JSONDecodeError:
+        logger.warning(TAG + "==> 响应数据不是有效的 JSON 格式")
+        return "解析响应失败"
+
+def handle_html_response(response):
+    try:
+        # 读取响应数据
+        content = response.read()
+
+        # 检查是否需要解压缩
+        if content[:2] == b'\x1f\x8b':  # Gzip 的魔术字节
+            content = gzip.GzipFile(fileobj=io.BytesIO(content)).read()
+
+        # 解码为字符串
+        html_content = content.decode('utf-8')
+
+        # 解析 HTML
+        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = soup.prettify()
+        return soup
+    except UnicodeDecodeError as e:
+        logger.warning(TAG + f"==> 解析 HTML 时出错: {e}")
+        return None
+    except Exception as e:
+        logger.warning(TAG + f"==> 处理 HTML 响应时出错: {e}")
+        return None
+
+def handle_xml_response(response):
+    try:
+        xml_content = response.read().decode('utf-8')
+        root = ET.fromstring(xml_content)
+        return root
+    except ET.ParseError:
+        logger.warning(TAG + "==> 响应数据不是有效的 XML 格式")
+        return "解析响应失败"
+
+def handle_gzip_response(response):
+    try:
+        compressed_data = response.read()
+        with gzip.GzipFile(fileobj=io.BytesIO(compressed_data)) as gz_file:
+            decompressed_data = gz_file.read().decode('utf-8')
+        return decompressed_data
+    except Exception as e:
+        logger.warning(TAG + f"==> 解压缩 Gzip 数据时出错: {e}")
+        return "解析响应失败"
+
+def handle_text_response(response):
+    try:
+        text_content = response.read().decode('utf-8')
+        return text_content
+    except UnicodeDecodeError:
+        logger.warning(TAG + "==> 响应数据不是有效的文本格式")
+        return "解析响应失败"
+
+
+
+def parse_response(response):
+    content_type = response.getheader('Content-Type')
+    logger.debug(TAG + "==>content_type: " + str(content_type))
+    if 'application/json' in content_type:
+        data = handle_json_response(response)
+    elif 'text/html' in content_type:
+        data = handle_html_response(response)
+    elif 'application/xml' in content_type or 'text/xml' in content_type:
+        data = handle_xml_response(response)
+    elif 'gzip' in content_type:
+        data = handle_gzip_response(response)
+    elif 'text/plain' in content_type:
+        data = handle_text_response(response)
+    else:
+        logger.warning(TAG + "==>Unknown response data format, content type: " + content_type)
+        data = "解析响应失败"
+    logger.info(TAG + "==>parsed data: " + str(data)+ "content_type is: " + content_type)
+
+    return data
+
 
 def send_requests(prep_request):
     url = urlparse(prep_request.url)
@@ -32,11 +120,15 @@ def send_requests(prep_request):
         # response.text = None
         # response.status_code = None
         return response
-    print(f"Response status: {response.status} {response.reason} {response.msg}")
-        # 读取响应体内容
-    response_body = response.read().decode('utf-8')
-    print(f"Response body: {response_body}")
-    response.text = response.reason
+    temp_log = f"Response status: {response.status} {response.reason} {response.msg}"
+    logger.info(TAG + temp_log)
+    # 读取响应体内容
+    
+    response_body = parse_response(response)
+
+
+    logger.info(TAG + str(response_body))
+    response.text = response_body
     response.status_code = response.status
 
     # 关闭连接
@@ -129,6 +221,7 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
         results.append(result)
         if result.get('response_status_code') == 200:
             logger.warning(TAG + "==>url: " + result['url'] + " success")
+            resLogger.log_result( result)
         else:
             logger.warning(TAG + "==>url: " + result['url'] + " failed" + " response: " + result['response_text'])
             url = payload['url']
@@ -150,7 +243,7 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                     if result.get('response_status_code') == 200:
                         logger.warning(TAG + "==>url: " + result['url'] + " success after mutant")
                         # 把success的payload记录到结果文件
-                        # resLogger.log_result(mutant_payload)
+                        resLogger.log_result( result)
                         break
                     else:
                         logger.warning(TAG + "==>url: " + result['url'] + " failed after mutant " + " response: " + result['response_text'])
