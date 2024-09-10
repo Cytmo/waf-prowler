@@ -95,5 +95,8 @@ main()
 T2 = time.perf_counter()  # 计时结束
 logger.info(TAG + "************************* end ******************************")
 
+
+# 打印程序配置
+logger.info(TAG+'程序配置: %s' % args)
 # 打印程序耗时
 logger.info(TAG+'程序运行时间:%s毫秒' % ((T2 - T1)*1000))

@@ -12,7 +12,9 @@ TAG = "prowler_process_requests.py: "
 
 def send_requests(prep_request):
     url = urlparse(prep_request.url)
-    logger.debug(TAG + "==>url: " + str(url))
+    logger.debug(TAG + "==>url: " + str(prep_request.url))
+    # print content of request
+    # logger.debug(TAG + "==>prep_request: " + str(prep_request))
     conn = http.client.HTTPConnection(url.netloc)
     try:
         conn.request(prep_request.method, prep_request.url, headers=prep_request.headers, body=prep_request.body)
@@ -30,9 +32,13 @@ def send_requests(prep_request):
         # response.text = None
         # response.status_code = None
         return response
-    print(f"Response status: {response.status} {response.reason}")
+    print(f"Response status: {response.status} {response.reason} {response.msg}")
+        # 读取响应体内容
+    response_body = response.read().decode('utf-8')
+    print(f"Response body: {response_body}")
     response.text = response.reason
     response.status_code = response.status
+
     # 关闭连接
     conn.close()
     return response
@@ -72,15 +78,17 @@ def process_requests(headers, url, method, data=None, files=None):
 
 def run_payload(payload, host, port, waf=False):
     url = payload['url']
+    # todo: more sophiscated way to obtain waf payload
+    if waf:
+        url = url.replace("8001", "9001").replace("8002", "9002").replace("8003", "9003")
     # for not mutanted payload, copy url as original url
     # for mutanted payload, use 'original_url' to display result
+
     if 'original_url' not in payload:
         original_url = url
     else:
         original_url = payload['original_url']
-    # todo: more sophiscated way to obtain waf payload
-    # if waf:
-    #     url = url.replace("8001", "9004")
+
     headers = payload['headers']
     data = payload.get('data', None)
     files = payload.get('files', None)

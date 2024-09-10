@@ -56,6 +56,13 @@ def get_unformatted_payload(json_path):
     ret['verify'] = verify if isinstance(verify, bool) else False
 
     files = jdata.get('files', None)
+ 
+    # 确保文件字段是元组格式
+    if files and isinstance(files, dict):
+        files = {
+            key: (file_info['filename'], file_info['content'], file_info['content_type'])
+            for key, file_info in files.items()
+        }
     ret['files'] = None if not files else files
     # determine whether this is a POST or GET request
     if data:

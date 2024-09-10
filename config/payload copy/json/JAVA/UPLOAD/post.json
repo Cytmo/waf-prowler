@@ -13,8 +13,11 @@
         "Connection": "close"
     },
     "files": {
-        "file":"('1.php', '123', 'text/php')"
+        "file": {
+          "filename": "1.php",
+          "content": "123",
+          "content_type": "application/x-httpd-php"
         }
-      ,
+      },
     "verify": false
 }

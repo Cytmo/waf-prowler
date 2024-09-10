@@ -1,7 +1,7 @@
 {
   "url": "http://localhost:8001/upload",
   "headers": {
-    "Host": "localhost:9001",
+    "Host": "localhost:8001",
     "Cache-Control": "max-age=0",
     "Upgrade-Insecure-Requests": "1",
     "Origin": "http://localhost:8001",
@@ -12,11 +12,8 @@
     "Connection": "close"
   },
   "files": {
-    "file": {
-      "filename": "1.php",
-      "content": "123",
-      "content_type": "application/x-httpd-php"
+    "file":"('1.php', '123', 'text/php')"
     }
-  },
+  ,
   "verify": false
 }
