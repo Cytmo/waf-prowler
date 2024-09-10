@@ -1,12 +1,10 @@
+import json
 import random
-
 import urllib.parse
 from utils.logUtils import LoggerSingleton
 from utils.dictUtils import content_types
-
 logger = LoggerSingleton().get_logger()
 TAG = "prowler_mutant.py: "
-
 
 def mutant_methods_modify_content_type(headers, url, method, data, files):
     logger.info(TAG + "==>mutant_methods_modify_content_type")
@@ -22,6 +20,16 @@ def mutant_methods_modify_content_type(headers, url, method, data, files):
                 'data': data,
                 'files': files
             })
+    # else:
+    #     for content_type in content_types:
+    #         headers['Content-Type'] =  ';'+content_type + ';'
+    #         mutant_payloads.append({
+    #             'headers': headers,
+    #             'url': url,
+    #             'method': method,
+    #             'data': data,
+    #             'files': files
+    #         })        
     return mutant_payloads
 
 # 协议未覆盖绕过
@@ -48,7 +56,7 @@ def mutant_methods_fake_content_type(headers,url,method,data,files):
             })
 
     return mutant_payloads
-import random
+
 
 def random_case(text):
     """Randomly changes the case of each character in the text."""
@@ -139,15 +147,16 @@ def mutant_upload_methods_double_equals(headers,url,method,data,files):
     logger.info(TAG + "==>mutant_upload_methods_double_equals")
     logger.debug(TAG + "==>headers: " + str(headers))
     mutant_payloads = []
-    if 'filename' in files:
-        files['filename'] = files['filename'] + "="
-        mutant_payloads.append({
-            'headers': headers,
-            'url': url,
-            'method': method,
-            'data': data,
-            'files': files
-        })
+    if files:
+        if 'filename' in files:
+            files['filename'] = files['filename'] + "="
+            mutant_payloads.append({
+                'headers': headers,
+                'url': url,
+                'method': method,
+                'data': data,
+                'files': files
+            })
     return mutant_payloads
 
 def unicode_obfuscate(text):
@@ -271,6 +280,7 @@ def mutant_methods_multipart_boundary(headers, url, method, data, files):
 
     mutant_payloads = []
     if 'Content-Type' not in headers or 'boundary' not in headers['Content-Type']:
+        # 如果没有boundary，直接返回
         return mutant_payloads
     # 基于 RFC 2231 的boundary构造
     boundary1 = ';boundary*0="-real-"'
@@ -302,7 +312,7 @@ def mutant_methods_add_padding(headers, url, method, data, files):
     logger.info(TAG + "==>mutant_methods_add_padding")
     logger.debug(TAG + "==>headers: " + str(headers))
     mutant_payloads = []
-    padding_data = 'x' * 1024  * 5  # 5 MB 的无用数据
+    padding_data = 'x' * 1024  * 5  # 5 kB 的无用数据
     if isinstance(data, bytes) and isinstance(padding_data, str):
         padding_data = padding_data.encode()  # 将 padding_data 转换为字节串
     if data:
@@ -318,46 +328,37 @@ def mutant_methods_add_padding(headers, url, method, data, files):
     })
     return mutant_payloads
 
+'''
+ALL MUTANT METHODS:
+mutant_methods_modify_content_type
+mutant_methods_fake_content_type
+mutant_methods_case_switching
+mutant_methods_url_encoding
+mutant_methods_unicode_normalization
+mutant_methods_line_breaks
+mutant_methods_add_padding
+mutant_methods_multipart_boundary
+mutant_upload_methods_double_equals
 
+'''
+# 为变异方法添加开关
+mutant_methods_config = {
+    "mutant_methods_modify_content_type": (mutant_methods_modify_content_type, True),
+    "mutant_methods_fake_content_type": (mutant_methods_fake_content_type, True),
+    "mutant_methods_case_and_comment_obfuscation": (mutant_methods_case_and_comment_obfuscation, False),
+    "mutant_methods_url_encoding": (mutant_methods_url_encoding, True),
+    "mutant_methods_unicode_normalization": (mutant_methods_unicode_normalization, False),
+    "mutant_methods_line_breaks": (mutant_methods_line_breaks, True),
+    "mutant_methods_add_padding": (mutant_methods_add_padding, True),
+    "mutant_methods_multipart_boundary": (mutant_methods_multipart_boundary, True),
+    "mutant_upload_methods_double_equals": (mutant_upload_methods_double_equals, True)
+}
 
-
-
-
-
-# # 通用载荷变异方法开关
-# mutant_methods_enabled = {
-#     "mutant_methods_modify_content_type": True,
-#     "mutant_methods_fake_content_type": True,
-#     "mutant_methods_case_switching": False,
-#     "mutant_methods_url_encoding": True,
-#     "mutant_methods_unicode_normalization": False,
-#     "mutant_methods_line_breaks": True
-# }
-
-# # 所有变异方法的字典
-# all_mutant_methods = {
-#     "mutant_methods_modify_content_type": mutant_methods_modify_content_type,
-#     "mutant_methods_fake_content_type": mutant_methods_fake_content_type,
-#     "mutant_methods_case_switching": mutant_methods_case_switching,
-#     "mutant_methods_url_encoding": mutant_methods_url_encoding,
-#     "mutant_methods_unicode_normalization": mutant_methods_unicode_normalization,
-#     "mutant_methods_line_breaks": mutant_methods_line_breaks
-# }
-
-# # 初始化启用的变异方法
-# mutant_methods = [
-#     method for name, method in all_mutant_methods.items() 
-#     if mutant_methods_enabled.get(name, False)
-# ]
-
-# 通用载荷变异方法
-# mutant_methods = [mutant_methods_modify_content_type, mutant_methods_fake_content_type, mutant_methods_case_and_comment_obfuscation,
-#                   mutant_methods_url_encoding, mutant_methods_unicode_normalization, mutant_methods_line_breaks,
-#                   mutant_methods_multipart_boundary]
-# mutant_methods = [mutant_methods_for_test_use]
-mutant_methods = [mutant_methods_add_padding,mutant_methods_modify_content_type, mutant_methods_fake_content_type, mutant_methods_case_and_comment_obfuscation,
-                   mutant_methods_url_encoding, mutant_methods_unicode_normalization, mutant_methods_line_breaks,
-                   mutant_methods_multipart_boundary]
+# 初始化启用的变异方法
+mutant_methods = [
+    method for method, enabled in mutant_methods_config.values()
+    if enabled
+]
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 
@@ -370,6 +371,7 @@ def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None):
         for sub_mutant_payload in sub_mutant_payloads:
             sub_mutant_payload['mutant_method'] = mutant_method.__name__
         mutant_payloads.extend(sub_mutant_payloads)
+
     if method == 'UPLOAD':
         for mutant_upload_method in mutant_methods_dedicated_to_upload:
             logger.info(TAG + "==>mutant upload method: " + str(mutant_upload_method))
