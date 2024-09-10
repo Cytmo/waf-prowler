@@ -241,10 +241,13 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                     logger.debug(TAG + "==>results: " + formatted_results)
                     results.append(result)
                     if result.get('response_status_code') == 200:
-                        logger.warning(TAG + "==>url: " + result['url'] + " success after mutant")
-                        # 把success的payload记录到结果文件
-                        resLogger.log_result( result)
-                        break
+                        if resLogger.check_response_text(result['url'],result['response_text']):
+                            logger.warning(TAG + "==>url: " + result['url'] + " success after mutant")
+                            # 把success的payload记录到结果文件
+                            resLogger.log_result(result)
+                            break
+                        else:
+                            logger.warning(TAG + "==>url: " + result['url'] + " response test check failed after mutant " + " response: " + str(result['response_text']))
                     else:
-                        logger.warning(TAG + "==>url: " + result['url'] + " failed after mutant " + " response: " + result['response_text'])
+                        logger.warning(TAG + "==>url: " + result['url'] + " failed after mutant " + " response: " + str(result['response_text']))
     return results

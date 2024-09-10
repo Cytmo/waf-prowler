@@ -37,3 +37,22 @@ class JSONLogger:
         with open(self.file_name, 'w') as f:
             json.dump(existing_data, f, indent=4, ensure_ascii=False)
 
+    def check_response_text(self, url, response_text):
+            # 读取现有的数据
+            if not os.path.exists(self.file_name):
+                self.create_empty_file()
+            
+            with open(self.file_name, 'r') as f:
+                existing_data = json.load(f)
+            
+            # 查找具有相同 URL 的条目
+            for entry in existing_data:
+                if entry['url'] == url:
+                    # 比较 response_text
+                    if entry['response_text'] == response_text:
+                        return True
+                    else:
+                        return False
+            
+            # 如果没有找到相同的 URL，返回 False
+            return False
