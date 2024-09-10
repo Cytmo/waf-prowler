@@ -116,7 +116,7 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False):
             verify = payload.get('verify', False)
             method = payload['method']
             processed_req = process_requests(headers, url, method, data=data, files=files)
-            mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body)
+            mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, files=files)
             for mutant_payload in mutant_payloads:
                 result = run_payload(mutant_payload, host, port, waf)
                 formatted_results = json.dumps(result, indent=4,ensure_ascii=False)
