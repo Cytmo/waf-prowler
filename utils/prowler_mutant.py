@@ -148,16 +148,30 @@ def mutant_upload_methods_double_equals(headers,url,method,data,files):
     logger.info(TAG + "==>mutant_upload_methods_double_equals")
     logger.debug(TAG + "==>headers: " + str(headers))
     mutant_payloads = []
-    if files:
-        if 'filename' in files:
-            files['filename'] = files['filename'] + "="
+    # 只有 multipart/form-data 才需要可以使用这个方法
+    content_type = headers.get('Content-Type')
+    if content_type and re.match('multipart/form-data', content_type):
+        # 双写等号：如果含有filename，则替换为filename=
+        data_str = data.decode()
+        if 'filename' in data_str:
+            data_str = data_str.replace('filename', 'filename=')
             mutant_payloads.append({
-                'headers': headers,
-                'url': url,
-                'method': method,
-                'data': data,
-                'files': files
-            })
+                        'headers': headers,
+                        'url': url,
+                        'method': method,
+                        'data': data_str
+                    })
+    # if files:
+    #     if 'filename' in files:
+    #         files['filename'] = files['filename'] + "="
+    #         mutant_payloads.append({
+    #             'headers': headers,
+    #             'url': url,
+    #             'method': method,
+    #             'data': data,
+    #             'files': files
+    #         })
+
     return mutant_payloads
 
 def unicode_obfuscate(text):
@@ -391,11 +405,11 @@ mutant_methods_config = {
 }
 
 # 初始化启用的变异方法
-mutant_methods = [
-    method for method, enabled in mutant_methods_config.values()
-    if enabled
-]
-# mutant_methods = [mutant_methods_multipart_boundary]
+# mutant_methods = [
+#     method for method, enabled in mutant_methods_config.values()
+#     if enabled
+# ]
+mutant_methods = [mutant_upload_methods_double_equals]
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 
