@@ -66,6 +66,10 @@ def get_unformatted_payload(json_path):
     ret['files'] = None if not files else files
     # determine whether this is a POST or GET request
     if data:
+        if not 'Content-Type' in headers:
+            ret['data'] = data
+            ret['method'] = 'POST'
+            return ret
         if "application/json" in headers['Content-Type']:
             ret['method'] = 'JSON_POST'
             ret['data'] = data
@@ -79,7 +83,7 @@ def get_unformatted_payload(json_path):
         ret['method'] = 'UPLOAD'
     else:
         ret['method'] = 'GET'
-
+    
     # return dictionary
     return ret
 

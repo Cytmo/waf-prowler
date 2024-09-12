@@ -50,6 +50,9 @@ class JSONLogger:
             for entry in existing_data:
                 if entry['url'] == url:
                     # 比较 response_text
+                    # todo 
+                    if '.php' in response_text and '.php' in entry['response_text']:
+                            return True
                     if entry['response_text'] == response_text:
                         return True
                     else:

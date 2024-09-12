@@ -150,7 +150,7 @@ def mutant_upload_methods_double_equals(headers,url,method,data,files):
     mutant_payloads = []
     # 只有 multipart/form-data 才需要可以使用这个方法
     content_type = headers.get('Content-Type')
-    if content_type and re.match('multipart/form-data', content_type):
+    if content_type and re.match('multipart/form-data', content_type) or 'filename' in str(data):
         # 双写等号：如果含有filename，则替换为filename=
         data_str = data.decode()
         if 'filename' in data_str:
@@ -295,7 +295,8 @@ def mutant_methods_multipart_boundary(headers, url, method, data, files):
     # 只有 multipart/form-data 才需要可以使用这个方法
     content_type = headers.get('Content-Type')
     if not content_type or not re.match('multipart/form-data', content_type):
-        return []
+        if not 'filename' in str(data):
+            return []
 
     # 解析filename
     data_str = data.decode()
@@ -429,22 +430,23 @@ mutant_methods_config = {
 }
 
 # 初始化启用的变异方法
+mutant_methods = [
+    method for method, enabled in mutant_methods_config.values()
+    if enabled
+]
 # mutant_methods = [
-#     method for method, enabled in mutant_methods_config.values()
-#     if enabled
-# ]
-mutant_methods = [mutant_methods_delete_content_type_of_data]
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 
 def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None):
     logger.info(TAG + "==>begin to mutant payloads")
     mutant_payloads = []
-    print(data)
-    exit()
     for mutant_method in mutant_methods:
         logger.info(TAG + "==>mutant method: " + str(mutant_method))
         sub_mutant_payloads = mutant_method(headers, url, method, data, files)
+        # 如果没有子变异载荷，输出警告
+        if not sub_mutant_payloads:
+            logger.warning(TAG + "==>no sub mutant payloads for method: " + str(mutant_method))
         for sub_mutant_payload in sub_mutant_payloads:
             sub_mutant_payload['mutant_method'] = mutant_method.__name__
         mutant_payloads.extend(sub_mutant_payloads)
@@ -452,13 +454,13 @@ def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None):
     if method == 'UPLOAD':
         for mutant_upload_method in mutant_methods_dedicated_to_upload:
             logger.info(TAG + "==>mutant upload method: " + str(mutant_upload_method))
-            headers,url,method,data,files = mutant_upload_method(headers,url,method,data,files)
+            headers,url,method,data,files = mutant_upload_method(headers,url,method,data,files=data)
             mutant_payloads.append({
                 'headers': headers,
                 'url': url,
                 'method': method,
                 'data': data,
-                'files': files
+                'files': data
             })
     # keep original url for result
     for payload in mutant_payloads:
