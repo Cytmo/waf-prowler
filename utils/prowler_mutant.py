@@ -1,3 +1,4 @@
+import copy
 import json
 import random
 import re
@@ -293,6 +294,7 @@ def mutant_methods_multipart_boundary(headers, url, method, data, files):
     logger.info(TAG + "==>mutant_methods_multipart_boundary")
     logger.debug(TAG + "==>headers: " + str(headers))
     # 只有 multipart/form-data 才需要可以使用这个方法
+
     content_type = headers.get('Content-Type')
     if not content_type or not re.match('multipart/form-data', content_type):
         if not 'filename' in str(data):
@@ -308,9 +310,10 @@ def mutant_methods_multipart_boundary(headers, url, method, data, files):
     match = pattern.search(content_type)
     if match:
         boundary = match.group(1)
-        print(f"Found boundary: {boundary}")
+        logger.debug(TAG + f"Found boundary: {boundary}")
     else:
         # 无boundary
+        logger.info(TAG + "No boundary found in Content-Type")
         return []
 
     # 拼接后为----realBoundary
@@ -441,9 +444,17 @@ mutant_methods_dedicated_to_upload = []
 def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None):
     logger.info(TAG + "==>begin to mutant payloads")
     mutant_payloads = []
+
     for mutant_method in mutant_methods:
+        # 对需要变异的参数进行深拷贝
+        headers_copy = copy.deepcopy(headers)
+        url_copy = copy.deepcopy(url)  # 如果url是字符串，不拷贝也可以
+        method_copy = copy.deepcopy(method)  # 如果method是字符串，不拷贝也可以
+        data_copy = copy.deepcopy(data)
+        files_copy = copy.deepcopy(files) if files else None
         logger.info(TAG + "==>mutant method: " + str(mutant_method))
-        sub_mutant_payloads = mutant_method(headers, url, method, data, files)
+        sub_mutant_payloads = mutant_method(headers_copy, url_copy, method_copy, data_copy, files_copy)
+        # print(str(headers) +"after mutant method " + str(mutant_method))
         # 如果没有子变异载荷，输出警告
         if not sub_mutant_payloads:
             logger.warning(TAG + "==>no sub mutant payloads for method: " + str(mutant_method))
