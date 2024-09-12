@@ -365,6 +365,8 @@ mutant_methods_dedicated_to_upload = []
 def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None):
     logger.info(TAG + "==>begin to mutant payloads")
     mutant_payloads = []
+    print(data)
+    exit()
     for mutant_method in mutant_methods:
         logger.info(TAG + "==>mutant method: " + str(mutant_method))
         sub_mutant_payloads = mutant_method(headers, url, method, data, files)
