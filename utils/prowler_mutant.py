@@ -378,6 +378,29 @@ def mutant_methods_add_padding(headers, url, method, data, files):
     })
     return mutant_payloads
 
+
+# 删除data中的Content-Type
+def mutant_methods_delete_content_type_of_data(headers, url, method, data, files):
+    """ 删除data中的Content-Type:xxx; """
+    logger.info(TAG + "==>mutant_methods_delete_content_type_of_data")
+    logger.debug(TAG + "==>headers: " + str(headers))
+    mutant_payloads = []
+    # 只有 multipart/form-data 才需要可以使用这个方法
+    content_type = headers.get('Content-Type')
+    if content_type and re.match('multipart/form-data', content_type):
+        pattern = r'Content-Type:[^;]+;\s*'
+        # 使用re.sub()函数来删除所有匹配的部分
+        data_str = data.decode()
+        cleaned_data = re.sub(pattern, '', data_str)
+        mutant_payloads.append({
+            'headers': headers,
+            'url': url,
+            'method': method,
+            'data': cleaned_data
+        })
+    return mutant_payloads
+
+
 '''
 ALL MUTANT METHODS:
 mutant_methods_modify_content_type
@@ -401,7 +424,8 @@ mutant_methods_config = {
     "mutant_methods_line_breaks": (mutant_methods_line_breaks, True),
     "mutant_methods_add_padding": (mutant_methods_add_padding, True),
     "mutant_methods_multipart_boundary": (mutant_methods_multipart_boundary, True),
-    "mutant_upload_methods_double_equals": (mutant_upload_methods_double_equals, True)
+    "mutant_upload_methods_double_equals": (mutant_upload_methods_double_equals, True),
+    "mutant_methods_delete_content_type_of_data": (mutant_methods_delete_content_type_of_data, True)
 }
 
 # 初始化启用的变异方法
@@ -409,7 +433,7 @@ mutant_methods_config = {
 #     method for method, enabled in mutant_methods_config.values()
 #     if enabled
 # ]
-mutant_methods = [mutant_upload_methods_double_equals]
+mutant_methods = [mutant_methods_delete_content_type_of_data]
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 
