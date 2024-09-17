@@ -39,6 +39,8 @@ class JSONLogger:
         with open(self.file_name, 'w') as f:
             json.dump(existing_data, f, indent=4, ensure_ascii=False)
 
+
+
     def check_response_text(self, url, response_text):
             
             # 读取现有的数据

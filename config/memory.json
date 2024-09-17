@@ -1,0 +1,70 @@
+[
+    {
+        "url": "http://localhost:9002/rce_json",
+        "successful_mutant_method": "mutant_methods_fake_content_type"
+    },
+    {
+        "url": "http://localhost:9002/rce_post",
+        "successful_mutant_method": "mutant_methods_modify_content_type"
+    },
+    {
+        "url": "http://localhost:9002/rce_get?cmd=cat%20/etc/passwd",
+        "successful_mutant_method": "mutant_methods_add_harmless_command_for_get_request"
+    },
+    {
+        "url": "http://localhost:9002/upload",
+        "successful_mutant_method": "mutant_methods_modify_content_type"
+    },
+    {
+        "url": "http://localhost:9002/sqli_json",
+        "successful_mutant_method": "mutant_methods_fake_content_type"
+    },
+    {
+        "url": "http://localhost:9002/sqli_post",
+        "successful_mutant_method": "mutant_methods_modify_content_type"
+    },
+    {
+        "url": "http://localhost:9003/rce_json",
+        "successful_mutant_method": "mutant_methods_fake_content_type"
+    },
+    {
+        "url": "http://localhost:9003/rce_post",
+        "successful_mutant_method": "mutant_methods_modify_content_type"
+    },
+    {
+        "url": "http://localhost:9003/upload",
+        "successful_mutant_method": "mutant_methods_modify_content_type"
+    },
+    {
+        "url": "http://localhost:9003/sqli_json",
+        "successful_mutant_method": "mutant_methods_fake_content_type"
+    },
+    {
+        "url": "http://localhost:9003/sqli_post",
+        "successful_mutant_method": "mutant_methods_modify_content_type"
+    },
+    {
+        "url": "http://localhost:9001/rce_json",
+        "successful_mutant_method": "mutant_methods_fake_content_type"
+    },
+    {
+        "url": "http://localhost:9001/rce_post",
+        "successful_mutant_method": "mutant_methods_modify_content_type"
+    },
+    {
+        "url": "http://localhost:9001/rce_get?cmd=cat%20/etc/passwd",
+        "successful_mutant_method": "mutant_methods_add_harmless_command_for_get_request"
+    },
+    {
+        "url": "http://localhost:9001/upload",
+        "successful_mutant_method": "mutant_methods_modify_content_type"
+    },
+    {
+        "url": "http://localhost:9001/sqli_json",
+        "successful_mutant_method": "mutant_methods_fake_content_type"
+    },
+    {
+        "url": "http://localhost:9001/sqli_post",
+        "successful_mutant_method": "mutant_methods_modify_content_type"
+    }
+]

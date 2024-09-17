@@ -1,5 +1,6 @@
 import copy
 import json
+import os
 import random
 import re
 import urllib.parse
@@ -657,10 +658,37 @@ mutant_methods = [
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 
-def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None):
+def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None,memory=None):
     logger.info(TAG + "==>begin to mutant payloads")
     mutant_payloads = []
+    if os.path.exists("config/memory.json"):
+        with open("config/memory.json", "r") as f:
+            try:
+                memories = json.load(f)
+            except json.decoder.JSONDecodeError:
+                memories = []
+        mem_dict = {}
+        for mem in memories:
+            mem_dict[mem['url']] = mem['successful_mutant_method']
+        __url = url.replace('8001', '9001').replace('8002', '9002').replace('8003', '9003')
+        if __url in mem_dict:
+            if mem_dict[__url] in mutant_methods_config:
+                mutant_method, flag = mutant_methods_config[mem_dict[__url]]
 
+                # 调用对应的变异方法
+                sub_mutant_payloads = mutant_method(headers, url, method, data, files)
+                logger.info(TAG + "==>found url in memory, use method: " + mem_dict[__url])
+                # keep original url for result
+                mutant_payloads.extend(sub_mutant_payloads)
+                for payload in mutant_payloads:
+                    payload['original_url'] = url
+
+                return mutant_payloads
+    else :
+        #打印当前路径
+        logger.info(os.getcwd())
+        logger.info("memory.json not exists")
+        # exit()
     for mutant_method in mutant_methods:
         # 对需要变异的参数进行深拷贝
         headers_copy = copy.deepcopy(headers)
