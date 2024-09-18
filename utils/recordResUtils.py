@@ -1,7 +1,9 @@
 import json
 import os
 from datetime import datetime
-
+from utils.logUtils import LoggerSingleton
+logger = LoggerSingleton().get_logger()
+TAG = 'recordResUtils'
 class JSONLogger:
     def __init__(self, directory='result'):
         self.directory = directory
@@ -37,7 +39,10 @@ class JSONLogger:
         with open(self.file_name, 'w') as f:
             json.dump(existing_data, f, indent=4, ensure_ascii=False)
 
+
+
     def check_response_text(self, url, response_text):
+            
             # 读取现有的数据
             if not os.path.exists(self.file_name):
                 self.create_empty_file()
@@ -47,16 +52,20 @@ class JSONLogger:
             #todo
             url = url.replace('9001','8001').replace('9002','8002').replace('9003','8003')
             # 查找具有相同 URL 的条目
+            logger.info(f'{TAG} check_response_text url:{url}')
+            logger.info(f'{TAG} check_response_text response_text:{response_text}')
             for entry in existing_data:
                 if entry['url'] == url:
                     # 比较 response_text
                     # todo 
                     if '.php' in response_text and '.php' in entry['response_text']:
-                            return True
-                    if entry['response_text'] == response_text:
+                        return True
+                    if 'root:x:0:0:root:/root:/bin/bash' in response_text and 'root:x:0:0:root:/root:/bin/bash' in entry['response_text']:
+                        return True
+                    if entry['response_text'] == response_text or entry['response_text'] in response_text:
                         return True
                     else:
                         return False
-            
+            logger.info(f'{TAG} no same url in existing_data, return False')
             # 如果没有找到相同的 URL，返回 False
             return False

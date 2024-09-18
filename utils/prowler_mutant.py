@@ -1,7 +1,10 @@
+import copy
 import json
+import os
 import random
 import re
 import urllib.parse
+import uuid
 from utils.logUtils import LoggerSingleton
 from utils.dictUtils import content_types
 logger = LoggerSingleton().get_logger()
@@ -293,6 +296,7 @@ def mutant_methods_multipart_boundary(headers, url, method, data, files):
     logger.info(TAG + "==>mutant_methods_multipart_boundary")
     logger.debug(TAG + "==>headers: " + str(headers))
     # 只有 multipart/form-data 才需要可以使用这个方法
+
     content_type = headers.get('Content-Type')
     if not content_type or not re.match('multipart/form-data', content_type):
         if not 'filename' in str(data):
@@ -308,9 +312,10 @@ def mutant_methods_multipart_boundary(headers, url, method, data, files):
     match = pattern.search(content_type)
     if match:
         boundary = match.group(1)
-        print(f"Found boundary: {boundary}")
+        logger.debug(TAG + f"Found boundary: {boundary}")
     else:
         # 无boundary
+        logger.info(TAG + "No boundary found in Content-Type")
         return []
 
     # 拼接后为----realBoundary
@@ -401,7 +406,204 @@ def mutant_methods_delete_content_type_of_data(headers, url, method, data, files
         })
     return mutant_payloads
 
+# 请求头变异,改变Content-Type的大小写
+def mutant_methods_modify_content_type_case(headers, url, method, data, files):
+    """ 变异Content-Type的大小写"""
+    logger.info(TAG + "==>mutant_methods_modify_content_type_case")
+    logger.debug(TAG + "==>headers: " + str(headers))
+    mutant_payloads = []
+    if 'Content-Type' in headers:
+        headers['Content-Type'] = headers['Content-Type'].upper()
+        mutant_payloads.append({
+            'headers': headers,
+            'url': url,
+            'method': method,
+            'data': data,
+            'files': files
+        })
+    return mutant_payloads
 
+# 请求头变异，改变Content-Type这个属性名本身的大小写
+def mutant_methods_modify_case_of_content_type(headers, url, method, data, files):
+    """ 变异Content-Type这个属性名本身的大小写"""
+    logger.info(TAG + "==>mutant_methods_modify_case_of_content_type")
+    logger.debug(TAG + "==>headers: " + str(headers))
+    mutant_payloads = []
+    if 'Content-Type' in headers:
+        new_content_type = headers.pop('Content-Type')
+        headers['content-type'] = new_content_type
+        mutant_payloads.append({
+            'headers': headers,
+            'url': url,
+            'method': method,
+            'data': data,
+            'files': files
+        })
+    return mutant_payloads
+
+def mutant_methods_add_Content_Type_for_get_request(headers, url, method, data, files):
+    """ 给GET请求添加Content-Type"""
+    logger.info(TAG + "==>mutant_methods_add_Content_Type_for_get_request")
+    logger.debug(TAG + "==>headers: " + str(headers))
+    mutant_payloads = []
+    if method == 'GET':
+        headers['Content-Type'] = 'application/x-www-form-urlencoded'
+        mutant_payloads.append({
+            'headers': headers,
+            'url': url,
+            'method': method,
+            'data': data,
+            'files': files
+        })
+    return mutant_payloads
+
+#为形如/rce_get?cmd=cat%20/etc/passwd的GET请求添加无害命令，如cmd=ls;cat%20/etc/passwd
+def mutant_methods_add_harmless_command_for_get_request(headers, url, method, data, files):
+    """ 为GET请求添加无害命令"""
+    logger.info(TAG + "==>mutant_methods_add_harmless_command_for_get_request")
+    logger.debug(TAG + "==>headers: " + str(headers))
+    mutant_payloads = []
+
+    if method == 'GET':
+        if 'cmd' in url:
+            url = url.replace('cmd=', 'cmd=ls;')
+        mutant_payloads.append({
+            'headers': headers,
+            'url': url,
+            'method': method,
+            'data': data,
+            'files': files
+        })
+    return mutant_payloads
+
+'''分块传输绕过
+分块传输编码是超文本传输协议（HTTP）中的一种数据传输机制，允许数据分为多个部分，仅在HTTP/1.1中提供。
+长度值为十六进制，也可以通过在长度值后面加上分号做注释，来提高绕过WAF的概率
+条件
+需要在请求头添加 “Transfer-Encoding=chunked” 才支持分块传输'''
+
+def mutant_methods_chunked_transfer_encoding(headers, url, method, data, files):
+    """ 使用分块传输编码，并将请求体拆分为更细的块 """
+    logger.info(TAG + "==>mutant_methods_chunked_transfer_encoding")
+    mutant_payloads = []
+    
+    # 仅在HTTP/1.1中支持分块传输编码
+    if method in ['POST', 'PUT', 'PATCH']:
+        mutated_headers = headers.copy()
+        mutated_headers['Transfer-Encoding'] = 'chunked'
+        if 'Content-Length' in mutated_headers:
+            del mutated_headers['Content-Length']
+        # 确保使用HTTP/1.1版本
+        mutated_headers['Protocol-Version'] = 'HTTP/1.1'
+    
+        # 构造分块传输编码的请求体
+        def chunked_body(data):
+            body = ''
+            if data:
+                if isinstance(data, dict):
+                    from urllib.parse import urlencode
+                    data = urlencode(data)
+                data = data if isinstance(data, str) else data.decode('utf-8')
+                # 将数据拆分为更细的块，例如每个块1个字符
+                chunk_size = 1  # 每个块的大小，可以调整为更小的值
+                for i in range(0, len(data), chunk_size):
+                    chunk = data[i:i+chunk_size]
+                    chunk_length = format(len(chunk), 'x')
+                    # 可选择在长度值后添加注释
+                    chunk_length_with_comment = chunk_length + ";"
+                    body += chunk_length_with_comment + "\r\n"
+                    body += chunk + "\r\n"
+            # 添加结束块
+            body += "0\r\n\r\n"
+            return body
+    
+        mutated_data = chunked_body(data)
+    
+        mutant_payloads.append({
+            'headers': mutated_headers,
+            'url': url,
+            'method': method,
+            'data': mutated_data,
+            'files': files
+        })
+    return mutant_payloads
+
+
+# 把content-type的值替换为multipart/form-data当作一个载荷
+def mutant_methods_multipart_form_data(headers, url, method, data, files):
+    """ 使用multipart/form-data编码发送普通参数，并可选添加charset参数 """
+    logger.info(TAG + "==>mutant_methods_multipart_form_data")
+    mutant_payloads = []
+
+    if method in ['POST', 'PUT', 'PATCH']:
+        mutated_headers = copy.deepcopy(headers)
+
+        # 生成随机的boundary
+        boundary = '----WebKitFormBoundary' + uuid.uuid4().hex[:16]
+        # 可选地在Content-Type后添加charset参数
+        charset_options = ['', ', charset=ibm500', ', charset=ibm037']
+
+        for charset in charset_options:
+            content_type = f'multipart/form-data; boundary={boundary}{charset}'
+            mutated_headers['Content-Type'] = content_type
+
+            # 构造multipart/form-data请求体
+            multipart_data = ''
+            if data:
+                if isinstance(data, dict):
+                    for name, value in data.items():
+                        multipart_data += f'--{boundary}\r\n'
+                        multipart_data += f'Content-Disposition: form-data; name="{name}"\r\n\r\n'
+                        multipart_data += f'{value}\r\n'
+                elif isinstance(data, str):
+                    multipart_data += f'--{boundary}\r\n'
+                    multipart_data += f'Content-Disposition: form-data; name="data"\r\n\r\n'
+                    multipart_data += f'{data}\r\n'
+            if files:
+                for name, file_info in files.items():
+                    filename = file_info.get('filename', 'file.txt')
+                    file_content = file_info.get('content', '')
+                    multipart_data += f'--{boundary}\r\n'
+                    multipart_data += f'Content-Disposition: form-data; name="{name}"; filename="{filename}"\r\n'
+                    multipart_data += f'Content-Type: application/octet-stream\r\n\r\n'
+                    multipart_data += f'{file_content}\r\n'
+            # 添加结束boundary
+            multipart_data += f'--{boundary}--\r\n'
+
+            # 更新Content-Length
+            mutated_headers['Content-Length'] = str(len(multipart_data))
+
+            mutant_payloads.append({
+                'headers': mutated_headers,
+                'url': url,
+                'method': method,
+                'data': multipart_data,
+                'files': None  # 已经在multipart_data中处理
+            })
+    return mutant_payloads
+
+# SQL注释符号绕过
+def mutant_methods_sql_comment_obfuscation(headers, url, method, data, files):
+    """ 在SQL查询中插入注释来进行混淆 """
+    logger.info(TAG + "==> mutant_methods_sql_comment_obfuscation")
+    logger.debug(TAG + "==>headers: " + str(headers))
+    
+    mutant_payloads = []
+    if method == 'GET':
+        # 插入SQL注释到URL中
+        obfuscated_url = url.replace(" ", "/**/").replace("%20", "/**/")
+        # 使用SQL注释符号来替换空格
+        
+        # 添加变异后的请求
+        mutant_payloads.append({
+            'headers': headers,
+            'url': obfuscated_url,
+            'method': method,
+            'data': data,
+            'files': files
+        })
+    
+    return mutant_payloads
 '''
 ALL MUTANT METHODS:
 mutant_methods_modify_content_type
@@ -413,6 +615,14 @@ mutant_methods_line_breaks
 mutant_methods_add_padding
 mutant_methods_multipart_boundary
 mutant_upload_methods_double_equals
+mutant_methods_delete_content_type_of_data
+mutant_methods_modify_content_type_case
+mutant_methods_modify_case_of_content_type
+mutant_methods_add_Content_Type_for_get_request
+mutant_methods_add_harmless_command_for_get_request
+mutant_methods_chunked_transfer_encoding
+mutant_methods_multipart_form_data
+mutant_methods_sql_comment_obfuscation
 
 '''
 # 为变异方法添加开关
@@ -426,7 +636,15 @@ mutant_methods_config = {
     "mutant_methods_add_padding": (mutant_methods_add_padding, True),
     "mutant_methods_multipart_boundary": (mutant_methods_multipart_boundary, True),
     "mutant_upload_methods_double_equals": (mutant_upload_methods_double_equals, True),
-    "mutant_methods_delete_content_type_of_data": (mutant_methods_delete_content_type_of_data, True)
+    "mutant_methods_delete_content_type_of_data": (mutant_methods_delete_content_type_of_data, True),
+    "mutant_methods_modify_content_type_case": (mutant_methods_modify_content_type_case, True),
+    "mutant_methods_modify_case_of_content_type": (mutant_methods_modify_case_of_content_type, True),
+    "mutant_methods_add_Content_Type_for_get_request": (mutant_methods_add_Content_Type_for_get_request, True),
+    "mutant_methods_add_harmless_command_for_get_request": (mutant_methods_add_harmless_command_for_get_request, True),
+    "mutant_methods_chunked_transfer_encoding": (mutant_methods_chunked_transfer_encoding, True),
+    "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data, True),
+    "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation, False),
+
 }
 
 # 初始化启用的变异方法
@@ -435,15 +653,53 @@ mutant_methods = [
     if enabled
 ]
 # mutant_methods = [mutant_methods_multipart_boundary]
+# mutant_methods = [mutant_methods_sql_comment_obfuscation]
+# mutant_methods = [mutant_methods_add_harmless_command_for_get_request]
+# mutant_methods = [mutant_methods_add_Content_Type_for_get_request]
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 
-def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None):
+def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None,memory=None):
     logger.info(TAG + "==>begin to mutant payloads")
     mutant_payloads = []
+    if os.path.exists("config/memory.json"):
+        with open("config/memory.json", "r") as f:
+            try:
+                memories = json.load(f)
+            except json.decoder.JSONDecodeError:
+                memories = []
+        mem_dict = {}
+        for mem in memories:
+            mem_dict[mem['url']] = mem['successful_mutant_method']
+        __url = url.replace('8001', '9001').replace('8002', '9002').replace('8003', '9003')
+        if __url in mem_dict:
+            if mem_dict[__url] in mutant_methods_config:
+                mutant_method, flag = mutant_methods_config[mem_dict[__url]]
+
+                # 调用对应的变异方法
+                sub_mutant_payloads = mutant_method(headers, url, method, data, files)
+                logger.info(TAG + "==>found url in memory, use method: " + mem_dict[__url])
+                # keep original url for result
+                mutant_payloads.extend(sub_mutant_payloads)
+                for payload in mutant_payloads:
+                    payload['original_url'] = url
+
+                return mutant_payloads
+    else :
+        #打印当前路径
+        logger.info(os.getcwd())
+        logger.info("memory.json not exists")
+        # exit()
     for mutant_method in mutant_methods:
+        # 对需要变异的参数进行深拷贝
+        headers_copy = copy.deepcopy(headers)
+        url_copy = copy.deepcopy(url)  # 如果url是字符串，不拷贝也可以
+        method_copy = copy.deepcopy(method)  # 如果method是字符串，不拷贝也可以
+        data_copy = copy.deepcopy(data)
+        files_copy = copy.deepcopy(files) if files else None
         logger.info(TAG + "==>mutant method: " + str(mutant_method))
-        sub_mutant_payloads = mutant_method(headers, url, method, data, files)
+        sub_mutant_payloads = mutant_method(headers_copy, url_copy, method_copy, data_copy, files_copy)
+        # print(str(headers) +"after mutant method " + str(mutant_method))
         # 如果没有子变异载荷，输出警告
         if not sub_mutant_payloads:
             logger.warning(TAG + "==>no sub mutant payloads for method: " + str(mutant_method))
