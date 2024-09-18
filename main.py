@@ -64,7 +64,10 @@ def main():
         if result['response_status_code'] == 200:
             logger.info(TAG + "==>url: " + result['url'] + " success")
         else:
-            logger.info(TAG + "==>url: " + result['url'] + " failed" + " response: " + result['response_text'])
+            if result['response_text'] is not None:
+                logger.warning(TAG + "==>url: " + result['url'] + " failed" + " response: " + result['response_text'])
+            else:
+                logger.warning(TAG + "==>url: " + result['url'] + " failed")
     # send payloads to address with waf
     if args.mutant:
         results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host,args.port,payloads,waf=True,PAYLOAD_MUTANT_ENABLED=True)

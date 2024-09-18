@@ -234,7 +234,10 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
         else:
             result['success'] = False
             results.append(result)
-            logger.warning(TAG + "==>url: " + result['url'] + " failed" + " response: " + result['response_text'])
+            if result['response_text'] is not None:
+                logger.warning(TAG + "==>url: " + result['url'] + " failed" + " response: " + result['response_text'])
+            else:
+                logger.warning(TAG + "==>url: " + result['url'] + " failed")
             url = payload['url']
             headers = payload['headers']
             data = payload.get('data', None)
