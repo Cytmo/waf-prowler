@@ -434,7 +434,7 @@ mutant_methods = [
     method for method, enabled in mutant_methods_config.values()
     if enabled
 ]
-# mutant_methods = [
+# mutant_methods = [mutant_methods_multipart_boundary]
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 
