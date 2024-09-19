@@ -24,6 +24,7 @@ argparse.add_argument("--disable-memory", help="if disable memory",action="store
 argparse.add_argument("-w","--wsl",default="true",help="if use wsl",action="store_true")
 argparse.add_argument("-m","--mutant",help="if use mutant",action="store_true")
 argparse.add_argument("--host", help="host ip",default="localhost")
+argparse.add_argument("-ds", "--disable-shortcut", help="enable shortcut, this will end exec when has any successful payload",action="store_true")
 argparse.add_argument("-p", "--plain", help="use text format payload",action="store_true")
 argparse.add_argument("--port", help="port",default="8001")
 
@@ -50,8 +51,11 @@ if args.test == True:
 if args.plain == True:
     logger.info(TAG+"==>Using plain payload")
     args.raw = "config/payload/plain"
+if args.disable_shortcut == True:
+    enable_shortcut = False 
+else:
+    enable_shortcut = True
 def main():
-
     # read raw payload folder
     if args.plain:
         payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload(args.raw,plain=True)
@@ -70,9 +74,9 @@ def main():
                 logger.warning(TAG + "==>url: " + result['url'] + " failed")
     # send payloads to address with waf
     if args.mutant:
-        results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host,args.port,payloads,waf=True,PAYLOAD_MUTANT_ENABLED=True)
+        results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host,args.port,payloads,waf=True,PAYLOAD_MUTANT_ENABLED=True,enable_shortcut=enable_shortcut)
     else:
-        results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host,args.port,payloads,waf=True,PAYLOAD_MUTANT_ENABLED=False)
+        results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host,args.port,payloads,waf=True,PAYLOAD_MUTANT_ENABLED=False,enable_shortcut=enable_shortcut)
     formatted_results = json.dumps(results, indent=6,ensure_ascii=False)
     logger.debug(TAG + "==>results: " + formatted_results)
     for result in results:
@@ -107,29 +111,48 @@ def main():
                     'successful_mutant_method': mutant_method,
                 }
                 memories.append(memory)
-    # 读取之前的memory，如果没有则创建一个新的
-    if not os.path.exists("config/memory.json"):
-        with open("config/memory.json", "w") as f:
-            json.dump([], f)
-    with open("config/memory.json", "r") as f:
-        try:
-            old_memory = json.load(f)
-        except json.decoder.JSONDecodeError:
-            logger.error(TAG + "==>memory.json is empty")
+    # 读取或初始化内存文件
+    memory_file_path = "config/memory.json"
+    try:
+        if not os.path.exists(memory_file_path):
+            os.makedirs(os.path.dirname(memory_file_path), exist_ok=True)
             old_memory = []
-    # 比较是否有新的memory
+            with open(memory_file_path, "w") as f:
+                json.dump(old_memory, f, indent=4)
+        else:
+            with open(memory_file_path, "r") as f:
+                old_memory = json.load(f)
+    except json.decoder.JSONDecodeError:
+        logger.error(f"{TAG} ==> 'memory.json' is empty or corrupted")
+        old_memory = []
+
+    # 去重处理
+    # 使用集合来避免重复的条目
+    unique_memories = {json.dumps(mem, sort_keys=True) for mem in memories}
+    memories = [json.loads(mem) for mem in unique_memories]
+
+    # 将旧的内存条目映射到一个以 URL 和 successful_mutant_method 为键的字典中
+    old_memory_dict = {(mem['url'], mem['successful_mutant_method']): mem for mem in old_memory}
+
+    # 比较并更新内存条目
     new_memory = []
     for memory in memories:
-        if memory not in old_memory:
+        key = (memory['url'], memory['successful_mutant_method'])
+        if key not in old_memory_dict:
             new_memory.append(memory)
+        else:
+            # 如果有相同的URL和successful_mutant_method，比较其他属性是否需要更新
+            old_mem = old_memory_dict[key]
+            if any(memory[k] != old_mem[k] for k in memory if k not in ['url', 'successful_mutant_method']):
+                old_memory.remove(old_mem)
+                new_memory.append(memory)
+
     # 更新memory.json中的内容
     if new_memory:
-        # 将旧的和新的内存条目合并
         updated_memory = old_memory + new_memory
-        
-        with open("config/memory.json", "w") as f:
-            # 格式化输出
+        with open(memory_file_path, "w") as f:
             json.dump(updated_memory, f, indent=4)
+        logger.info(f"{TAG} ==> Updated 'memory.json' with new entries.")
 logger.info(TAG + "************************ start *****************************")
 T1 = time.perf_counter()  # 计时
 

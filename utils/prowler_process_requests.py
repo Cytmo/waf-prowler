@@ -220,7 +220,7 @@ def run_payload(payload, host, port, waf=False):
 
 
 
-def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_ENABLED=False):
+def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_ENABLED=False,enable_shortcut=True):
     results = []
     
     for payload in payloads:
@@ -271,7 +271,8 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                             # 记录成功的 payload
                             resLogger.log_result(result)
                             success_after_mutant = True
-                            break
+                            if enable_shortcut:
+                                break
                         else:
                             result['success'] = False
                             results.append(result)
