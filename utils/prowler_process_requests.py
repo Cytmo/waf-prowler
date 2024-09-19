@@ -172,6 +172,7 @@ def process_requests(headers, url, method, data=None, files=None):
 
 
 def run_payload(payload, host, port, waf=False):
+    logger.info(TAG + "==>run payload: " + str(payload))
     url = payload['url']
     # todo: more sophiscated way to obtain waf payload
     if waf:
@@ -247,20 +248,46 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
             processed_req = process_requests(headers, url, method, data=data, files=files)
             logger.info(TAG + "==>PAYLOAD_MUTANT_ENABLED: " + str(PAYLOAD_MUTANT_ENABLED))
             if PAYLOAD_MUTANT_ENABLED:
-                mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body)
-                for mutant_payload in mutant_payloads:
-                    result = run_payload(mutant_payload, host, port, waf)
-                    formatted_results = json.dumps(result, indent=4,ensure_ascii=False)
-                    logger.debug(TAG + "==>results: " + formatted_results)
-                    if result.get('response_status_code') == 200 and resLogger.check_response_text(result['original_url'],result['response_text']):
-                        logger.warning(TAG + "==>url: " + result['url'] + " success after mutant")
-                        result['success'] = True
-                        results.append(result)
-                        # 把success的payload记录到结果文件
-                        resLogger.log_result(result)
-                        break
-                    else:
-                        result['success'] = False
-                        results.append(result)
-                        logger.warning(TAG + "==>url: " + result['url'] + " failed after mutant " + " response: " + str(result['response_text']))
+                success_after_mutant = False 
+                deep_mutant = False
+                end_mutant = False
+                
+                # 修改终止条件为 end_mutant == False
+                while not success_after_mutant and not end_mutant:
+                    # 获取变异后的 payloads
+                    mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
+                    
+                    # 遍历 mutant_payloads 执行 payload
+                    for mutant_payload in mutant_payloads:
+                        result = run_payload(mutant_payload, host, port, waf)
+                        formatted_results = json.dumps(result, indent=4, ensure_ascii=False)
+                        logger.debug(TAG + "==>results: " + formatted_results)
+                        
+                        # 检查返回状态码以及结果
+                        if result.get('response_status_code') == 200 and resLogger.check_response_text(result['original_url'], result['response_text']):
+                            logger.warning(TAG + "==>url: " + result['url'] + " success after mutant")
+                            result['success'] = True
+                            results.append(result)
+                            # 记录成功的 payload
+                            resLogger.log_result(result)
+                            success_after_mutant = True
+                            break
+                        else:
+                            result['success'] = False
+                            results.append(result)
+                            logger.warning(TAG + "==>url: " + result['url'] + " failed after mutant " + " response: " + str(result['response_text']))
+
+                    # 如果还未成功并且 deep_mutant 为 False，进行深度变异
+                    if not success_after_mutant and not deep_mutant:
+                        if method != 'GET':
+                            end_mutant = True
+                        else:
+                            deep_mutant = True
+                        logger.warning(TAG + "==>url: " + result['url'] + " begin deep mutant")
+                    # 如果深度变异也失败，终止变异过程
+                    elif not success_after_mutant and deep_mutant:
+                        logger.warning(TAG + "==>url: " + result['url'] + " deep mutant failed")
+                        end_mutant = True
+
+    
     return results

@@ -51,6 +51,8 @@ class JSONLogger:
                 existing_data = json.load(f)
             #todo
             url = url.replace('9001','8001').replace('9002','8002').replace('9003','8003')
+            if '4d2e58c872d529fba1d14ba0949b644d' in response_text:
+                return True
             # 查找具有相同 URL 的条目
             logger.info(f'{TAG} check_response_text url:{url}')
             logger.info(f'{TAG} check_response_text response_text:{response_text}')
@@ -62,6 +64,7 @@ class JSONLogger:
                         return True
                     if 'root:x:0:0:root:/root:/bin/bash' in response_text and 'root:x:0:0:root:/root:/bin/bash' in entry['response_text']:
                         return True
+
                     if entry['response_text'] == response_text or entry['response_text'] in response_text:
                         return True
                     else:

