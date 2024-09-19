@@ -108,7 +108,11 @@ def main():
 
     for url, attempts in url_attempts.items():
         logger.warning(TAG + "==>url: " + url + " attempts: " + str(attempts['attempts']) + " success: " + str(attempts['success']))
-
+    # 输出总的尝试次数和成功次数及成功率
+    total_attempts = sum(attempts['attempts'] for attempts in url_attempts.values())
+    total_success = sum(attempts['success'] for attempts in url_attempts.values())
+    success_rate = total_success / total_attempts if total_attempts > 0 else 0
+    logger.info(TAG + "==>Total attempts: " + str(total_attempts) + " Total success: " + str(total_success) + " Success rate: " + str(success_rate))
     memories = []
     for result in results:
         if result['success'] ==True:
