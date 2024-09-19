@@ -109,10 +109,10 @@ def main():
     for url, attempts in url_attempts.items():
         logger.warning(TAG + "==>url: " + url + " attempts: " + str(attempts['attempts']) + " success: " + str(attempts['success']))
     # 输出总的尝试次数和成功次数及成功率
-    total_attempts = sum(attempts['attempts'] for attempts in url_attempts.values())
+    total_attempts = sum(attempts['attempts'] for attempts in url_attempts.values()) - len(url_attempts)
     total_success = sum(attempts['success'] for attempts in url_attempts.values())
     success_rate = total_success / total_attempts if total_attempts > 0 else 0
-    logger.info(TAG + "==>Total attempts: " + str(total_attempts) + " Total success: " + str(total_success) + " Success rate: " + str(success_rate))
+    logger.info(TAG + "==>Total attempts(initial attempt not included): " + str(total_attempts) + " Total success: " + str(total_success) + " Success rate: " + str(success_rate))
     memories = []
     for result in results:
         if result['success'] ==True:
@@ -182,3 +182,8 @@ logger.info(TAG + "************************* end ******************************"
 logger.info(TAG+'程序配置: %s' % args)
 # 打印程序耗时
 logger.info(TAG+'程序运行时间:%s毫秒' % ((T2 - T1)*1000))
+# 打印日志文件路径，获取log文件夹下最新的日志文件
+newest_log_file = sorted([os.path.join("log", f) for f in os.listdir("log")], key=os.path.getctime)[-1]
+logger.info(TAG + "日志文件路径: %s" % newest_log_file)
+newest_result_file = sorted([os.path.join("result", f) for f in os.listdir("result")], key=os.path.getctime)[-1]
+logger.info(TAG + "结果文件路径: %s" % newest_result_file)

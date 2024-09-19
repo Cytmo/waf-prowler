@@ -1,4 +1,5 @@
 import copy
+import itertools
 import json
 import os
 import random
@@ -688,7 +689,7 @@ mutant_methods_config = {
     "mutant_methods_url_encoding": (mutant_methods_url_encoding, True),
     "mutant_methods_unicode_normalization": (mutant_methods_unicode_normalization, False),
     "mutant_methods_line_breaks": (mutant_methods_line_breaks, True),
-    "mutant_methods_add_padding": (mutant_methods_add_padding, True),
+    "mutant_methods_add_padding": (mutant_methods_add_padding, False),
     "mutant_methods_multipart_boundary": (mutant_methods_multipart_boundary, True),
     "mutant_upload_methods_double_equals": (mutant_upload_methods_double_equals, True),
     "mutant_methods_delete_content_type_of_data": (mutant_methods_delete_content_type_of_data, True),
@@ -716,8 +717,59 @@ mutant_methods = [
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 
-def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None,memory=None,deep_mutant=False):
+
+# using delta-debugging to reduce the size of the input
+def dd_mutant(headers,url,method,data,files):
+    # 生成从1到len(mutant_methods)的所有组合
+    max_combination_length = 2
+    if len(mutant_methods) % 2 != 0:
+        max_combination_length += 1  # 处理奇数情况，取一半的上界
+
+    # 生成从1到max_combination_length的所有组合
+    all_combinations = []
+    for r in range(1, max_combination_length + 1):
+        combinations = itertools.combinations(mutant_methods, r)
+        all_combinations.extend(combinations)
+    # 对每个组合进行变异操作
+    sub_mutant_payloads = []
+    for combination in all_combinations:
+        # 深拷贝初始参数
+        headers_copy = copy.deepcopy(headers)
+        url_copy = copy.deepcopy(url)
+        method_copy = copy.deepcopy(method)
+        data_copy = copy.deepcopy(data)
+        files_copy = copy.deepcopy(files) if files else None
+
+        # 应用每个mutant method在组合中
+        for mutant_method in combination:
+            logger.info(TAG + "==>mutant method: " + str(mutant_method))
+            sub_payloads =  mutant_method(headers_copy, url_copy, method_copy, data_copy, files_copy)
+            # get the first sub_payload
+            if sub_payloads:
+                headers_copy = copy.deepcopy(sub_payloads[0]['headers'])
+                url_copy = copy.deepcopy(sub_payloads[0]['url'])
+                method_copy = copy.deepcopy(sub_payloads[0]['method'])
+                data_copy = copy.deepcopy(sub_payloads[0]['data'])
+                files_copy = copy.deepcopy(sub_payloads[0]['files']) if sub_payloads[0].get('files') else None
+        sub_mutant_payload = {
+            'headers': headers_copy,
+            'url': url_copy,
+            'method': method_copy,
+            'data': data_copy,
+            'files': files_copy
+        }
+        sub_mutant_payloads.append(sub_mutant_payload)
+    with open("test.json", "w") as f:
+        content_to_write = []
+        for sub_mutant_payload in sub_mutant_payloads:
+            print(str(sub_mutant_payload))
+            content_to_write.append(str(sub_mutant_payload))
+        f.write(json.dumps(content_to_write))
+    return sub_mutant_payloads
+
+def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None,memory=None,deep_mutant=False,dd_enabled=False):
     logger.info(TAG + "==>begin to mutant payloads")
+
     url_backup = copy.deepcopy(url)
     mutant_payloads = []
     if os.path.exists("config/memory.json") and not deep_mutant:
@@ -755,6 +807,9 @@ def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None,memor
             return []
         # print(headers,url,method,data,files)
         # exit()
+    if dd_enabled:
+        logger.info(TAG + "==>dd enabled")
+        return dd_mutant(headers,url,method,data,files)
     for mutant_method in mutant_methods:
         # 对需要变异的参数进行深拷贝
         headers_copy = copy.deepcopy(headers)

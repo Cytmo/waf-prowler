@@ -220,7 +220,7 @@ def run_payload(payload, host, port, waf=False):
 
 
 
-def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_ENABLED=False,enable_shortcut=True):
+def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_ENABLED=False,enable_shortcut=True,enable_dd=False):
     results = []
     
     for payload in payloads:
