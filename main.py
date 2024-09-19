@@ -24,7 +24,7 @@ argparse.add_argument("--disable-memory", help="if disable memory",action="store
 argparse.add_argument("-w","--wsl",default="true",help="if use wsl",action="store_true")
 argparse.add_argument("-m","--mutant",help="if use mutant",action="store_true")
 argparse.add_argument("--host", help="host ip",default="localhost")
-argparse.add_argument("-ds", "--disable-shortcut", help="enable shortcut, this will end exec when has any successful payload",action="store_true")
+argparse.add_argument("-ds", "--disable-shortcut", help="disable shortcut, which will end exec when has any successful payload",action="store_true")
 argparse.add_argument("-p", "--plain", help="use text format payload",action="store_true")
 argparse.add_argument("--port", help="port",default="8001")
 
@@ -77,6 +77,18 @@ def main():
         results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host,args.port,payloads,waf=True,PAYLOAD_MUTANT_ENABLED=True,enable_shortcut=enable_shortcut)
     else:
         results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host,args.port,payloads,waf=True,PAYLOAD_MUTANT_ENABLED=False,enable_shortcut=enable_shortcut)
+    # result 去重
+    # 使用集合去重
+    seen = set()
+    unique_results = []
+
+    for result in results:
+        # 定义一个元组作为去重的依据
+        identifier = (result['url'], result['response_status_code'], json.dumps(result['response_text']),json.dumps(result['payload']),result['original_url']) 
+        if identifier not in seen:
+            seen.add(identifier)
+            unique_results.append(result)
+    results = unique_results
     formatted_results = json.dumps(results, indent=6,ensure_ascii=False)
     logger.debug(TAG + "==>results: " + formatted_results)
     for result in results:
