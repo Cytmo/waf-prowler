@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import re
@@ -55,6 +56,26 @@ if args.disable_shortcut == True:
     enable_shortcut = False 
 else:
     enable_shortcut = True
+def generate_unique_id(entry):
+    # 生成唯一标识符，基于url、method、data和payload
+    unique_str = f"{entry['url']}{entry['payload']}{entry['original_url']}"
+    return hashlib.md5(unique_str.encode()).hexdigest()
+
+def deduplicate_results(input_file, output_file):
+    with open(input_file, 'r') as f:
+        results = json.load(f)
+
+    seen_ids = set()
+    deduplicated_results = []
+
+    for entry in results:
+        unique_id = generate_unique_id(entry)
+        if unique_id not in seen_ids:
+            seen_ids.add(unique_id)
+            deduplicated_results.append(entry)
+
+    with open(output_file, 'w') as f:
+        json.dump(deduplicated_results, f, indent=4)
 def main():
     # read raw payload folder
     logger.info(TAG + "==>raw payload folder: " + args.raw)
@@ -170,6 +191,7 @@ def main():
         with open(memory_file_path, "w") as f:
             json.dump(updated_memory, f, indent=4)
         logger.info(f"{TAG} ==> Updated 'memory.json' with new entries.")
+
 logger.info(TAG + "************************ start *****************************")
 T1 = time.perf_counter()  # 计时
 
@@ -187,4 +209,5 @@ logger.info(TAG+'程序运行时间:%s毫秒' % ((T2 - T1)*1000))
 newest_log_file = sorted([os.path.join("log", f) for f in os.listdir("log")], key=os.path.getctime)[-1]
 logger.info(TAG + "日志文件路径: %s" % newest_log_file)
 newest_result_file = sorted([os.path.join("result", f) for f in os.listdir("result")], key=os.path.getctime)[-1]
+deduplicate_results(newest_result_file, newest_result_file)
 logger.info(TAG + "结果文件路径: %s" % newest_result_file)
