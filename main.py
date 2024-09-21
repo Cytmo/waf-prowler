@@ -43,7 +43,7 @@ if args.disable_memory == True:
     if os.path.exists("config/memory.json"):
         os.remove("config/memory.json")
     else:
-        logger.info(TAG+"==>The file does not exist")
+        logger.info(TAG+"==>Memory file does not exist")
 # if test
 if args.test == True:
     args.raw = "test/test_payloads"
@@ -57,6 +57,7 @@ else:
     enable_shortcut = True
 def main():
     # read raw payload folder
+    logger.info(TAG + "==>raw payload folder: " + args.raw)
     if args.plain:
         payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload(args.raw,plain=True)
     payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload(args.raw)

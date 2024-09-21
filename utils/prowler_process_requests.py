@@ -1,11 +1,12 @@
 import json
 import os
 import requests
+# from utils.prowler_mutant import prowler_begin_to_mutant_payloads
 from utils.prowler_mutant import prowler_begin_to_mutant_payloads
+from utils.prowler_rl_based_mutant import prowler_begin_to_mutant_payloads as rl_based_mutant
 from utils.logUtils import LoggerSingleton
 from utils.recordResUtils import JSONLogger
 import http.client
-import chardet
 import gzip
 from bs4 import BeautifulSoup
 import io
@@ -16,6 +17,9 @@ logger = LoggerSingleton().get_logger()
 resLogger = JSONLogger()
 TAG = "prowler_process_requests.py: "
 
+def rl_based_mutant_payloads(headers, url, method, data=None, deep_mutant=False):
+    mutant_payloads = rl_based_mutant(headers, url, method, data, deep_mutant)
+    return mutant_payloads
 
 def handle_json_response(response):
     try:
