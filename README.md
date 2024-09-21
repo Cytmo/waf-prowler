@@ -7,8 +7,9 @@
 ### SET UP TEST ENVS
 Use `set_test_env.sh` to set up the test environments
 ### RUN TESTS
-- WSL2
-`python3 main.py -w`
+Use 'run.sh' to run the tests or run the following command:
+`python3 main.py -m` to run the tests with mutants and memory
+`python3 main.py -m --disable-memory` to run the tests with mutants and without memory
+`python3 main.py --disable-memory -ds` to run the tests without memory and shortcut disabled
 
-- OTHER LINUX
-`python3 main.py --host localhost`
+
