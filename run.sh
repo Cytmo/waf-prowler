@@ -22,7 +22,7 @@ case $choice in
         ;;
     3)
         echo "Running waf-prowler without memory and disable shortcut..."
-        python3 main.py --disable-memory -ds
+        python3 main.py -m --disable-memory -ds
         ;;
     4)
         echo "Cleaning up..."
