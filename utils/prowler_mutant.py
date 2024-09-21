@@ -689,7 +689,7 @@ mutant_methods_config = {
     "mutant_methods_url_encoding": (mutant_methods_url_encoding, True),
     "mutant_methods_unicode_normalization": (mutant_methods_unicode_normalization, False),
     "mutant_methods_line_breaks": (mutant_methods_line_breaks, True),
-    "mutant_methods_add_padding": (mutant_methods_add_padding, False),
+    "mutant_methods_add_padding": (mutant_methods_add_padding, True),
     "mutant_methods_multipart_boundary": (mutant_methods_multipart_boundary, True),
     "mutant_upload_methods_double_equals": (mutant_upload_methods_double_equals, True),
     "mutant_methods_delete_content_type_of_data": (mutant_methods_delete_content_type_of_data, True),
