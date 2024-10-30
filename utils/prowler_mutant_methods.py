@@ -172,12 +172,17 @@ def mutant_methods_url_encoding(headers, url, method, data, files):
 def mutant_upload_methods_double_equals(headers,url,method,data,files):
     logger.info(TAG + "==>mutant_upload_methods_double_equals")
     logger.debug(TAG + "==>headers: " + str(headers))
+
     mutant_payloads = []
     # 只有 multipart/form-data 才需要可以使用这个方法
     content_type = headers.get('Content-Type')
     if content_type and re.match('multipart/form-data', content_type) or 'filename' in str(data):
         # 双写等号：如果含有filename，则替换为filename=
-        data_str = data.decode()
+        if isinstance(data, bytes):
+            
+            data_str = data.decode()
+        else:
+            data_str = data
         if 'filename' in data_str:
             data_str = data_str.replace('filename', 'filename=')
             mutant_payloads.append({
@@ -323,9 +328,12 @@ def mutant_methods_multipart_boundary(headers, url, method, data, files):
     if not content_type or not re.match('multipart/form-data', content_type):
         if not 'filename' in str(data):
             return []
-
-    # 解析filename
-    data_str = data.decode()
+    if isinstance(data, bytes):
+        data_str = data.decode()
+    else:
+        data_str = data
+    # # 解析filename
+    # data_str = data.decode()
     pattern = re.compile(r'Content-Disposition: form-data;.*filename="([^"]+)"')
     filenames = pattern.findall(data_str)
 
@@ -421,7 +429,10 @@ def mutant_methods_delete_content_type_of_data(headers, url, method, data, files
     if content_type and re.match('multipart/form-data', content_type):
         pattern = r'Content-Type:[^;]+;\s*'
         # 使用re.sub()函数来删除所有匹配的部分
-        data_str = data.decode()
+        if not isinstance(data, str):
+            data_str = data.decode()
+        else:
+            data_str = data
         cleaned_data = re.sub(pattern, '', data_str)
         mutant_payloads.append({
             'headers': headers,
@@ -693,7 +704,7 @@ mutant_methods_config = {
     "mutant_methods_modify_case_of_content_type": (mutant_methods_modify_case_of_content_type, True),
     "mutant_methods_add_Content_Type_for_get_request": (mutant_methods_add_Content_Type_for_get_request, True),
     "mutant_methods_add_harmless_command_for_get_request": (mutant_methods_add_harmless_command_for_get_request, True),
-    "mutant_methods_chunked_transfer_encoding": (mutant_methods_chunked_transfer_encoding, True),
+    "mutant_methods_chunked_transfer_encoding": (mutant_methods_chunked_transfer_encoding, False),
     "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data, True),
     "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation, False),
     "mutant_methods_convert_get_to_post": (mutant_methods_convert_get_to_post, False),

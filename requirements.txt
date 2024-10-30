@@ -5,3 +5,7 @@ lxml
 html5lib
 numpy
 fasttext
+scikit-learn
+torch
+gymnasium
+stable-baselines3
