@@ -46,8 +46,6 @@ def mutant_methods_modify_content_type(headers, url, method, data, files):
 
 
 
-
-
 def mutant_methods_change_request_method(headers, url, method, data, files):
     logger.info(TAG + "==>mutant_methods_change_request_method")
     logger.debug(TAG + "==>headers: " + str(headers))
@@ -826,6 +824,7 @@ def prowler_begin_to_mutant_payloads(headers, url, method, data, files=None, mem
 
     # 初始化RL Agent
     agent = RLAgent(mutant_methods, reward_function)
+    files = files if isinstance(files, dict) else None
 
     # 选择一个初始状态
     # 选择一个初始状态

@@ -5,8 +5,9 @@ echo "Please choose an action:"
 echo "1. Run waf-prowler with memory..."
 echo "2. Run waf-prowler without memory..."
 echo "3. Run waf-prowler without memory and disable shortcut..."
-echo "4. Clean up..."
-echo "5. Exit"
+echo "4. Run waf-prowler without memory and with reinforcement learning..."
+echo "5. Clean up..."
+echo "6. Exit"
 
 # Read user choice
 read -p "Enter option [1-5]: " choice
@@ -25,10 +26,14 @@ case $choice in
         python3 main.py -m --disable-memory -ds
         ;;
     4)
+        echo "Running waf-prowler without memory and with reinforcement learning..."
+        python3 main.py -m --disable-memory --rl
+        ;;
+    5)
         echo "Cleaning up..."
         ./clean.sh
         ;;
-    5)
+    6)
         echo "Exiting the program"
         exit 0
         ;;

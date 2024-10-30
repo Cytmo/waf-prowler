@@ -224,7 +224,7 @@ def run_payload(payload, host, port, waf=False):
 
 
 
-def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_ENABLED=False,enable_shortcut=True,enable_dd=False):
+def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_ENABLED=False,enable_shortcut=True,enable_dd=False,rl=False):
     results = []
     
     for payload in payloads:
@@ -259,8 +259,11 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                 # 修改终止条件为 end_mutant == False
                 while not success_after_mutant and not end_mutant:
                     # 获取变异后的 payloads
-                    mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
-                    
+                    if rl:
+                    # mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
+                        mutant_payloads = rl_based_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
+                    else:
+                        mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
                     # 遍历 mutant_payloads 执行 payload
                     for mutant_payload in mutant_payloads:
                         result = run_payload(mutant_payload, host, port, waf)

@@ -28,6 +28,8 @@ argparse.add_argument("--host", help="host ip",default="localhost")
 argparse.add_argument("-ds", "--disable-shortcut", help="disable shortcut, which will end exec when has any successful payload",action="store_true")
 argparse.add_argument("-p", "--plain", help="use text format payload",action="store_true")
 argparse.add_argument("--port", help="port",default="8001")
+# 是否启用强化学习
+argparse.add_argument("--rl", help="if use reinforcement learning",action="store_true")
 
 # 输入扫描的路径
 args = argparse.parse_args()
@@ -56,6 +58,9 @@ if args.disable_shortcut == True:
     enable_shortcut = False 
 else:
     enable_shortcut = True
+# if use reinforcement learning
+if args.rl == True:
+    logger.info(TAG+"==>Using reinforcement learning")
 def generate_unique_id(entry):
     # 生成唯一标识符，基于url、method、data和payload
     unique_str = f"{entry['url']}{entry['payload']}{entry['original_url']}"
@@ -96,7 +101,7 @@ def main():
                 logger.warning(TAG + "==>url: " + result['url'] + " failed")
     # send payloads to address with waf
     if args.mutant:
-        results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host,args.port,payloads,waf=True,PAYLOAD_MUTANT_ENABLED=True,enable_shortcut=enable_shortcut)
+        results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host,args.port,payloads,waf=True,PAYLOAD_MUTANT_ENABLED=True,enable_shortcut=enable_shortcut,rl=args.rl)
     else:
         results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host,args.port,payloads,waf=True,PAYLOAD_MUTANT_ENABLED=False,enable_shortcut=enable_shortcut)
     # result 去重
