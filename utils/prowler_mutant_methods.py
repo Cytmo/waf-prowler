@@ -317,6 +317,360 @@ def mutant_methods_for_test_use(headers, url, method, data, files):
     logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
     return mutant_payloads
 
+def mutant_methods_change_extensions(headers, url, method, data, files):
+    """
+    生成不同的 Content-Type 和字符集变体
+
+    """
+    logger.info(TAG + "==>mutant_methods_change_charset")
+    # logger.debug(TAG + "==>headers: " + str(headers))
+
+    mutant_payloads = []
+
+    valid_extensions = ['phtml', 'php', 'php3', 'php4', 'php5', 'inc','pHtml', 'pHp', 'pHp3', 'pHp4', 'pHp5', 'iNc']
+    extensions_choice=random.choice(valid_extensions)
+    if isinstance(data,bytes):
+        data=data.decode('utf-8').replace('php','php5').encode('utf-8')
+   
+    mutant_payloads.append({
+        'headers': headers,
+        'url': url,
+        'method': method,
+        'data': data,
+        'files': files
+    })
+
+    logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
+
+    return mutant_payloads
+
+
+def mutant_methods_change_charset(headers, url, method, data, files):
+    """
+    生成不同的 Content-Type 和字符集变体
+
+    """
+    logger.info(TAG + "==>mutant_methods_change_charset")
+    # logger.debug(TAG + "==>headers: " + str(headers))
+
+    mutant_payloads = []
+
+
+    # Content-Type 变体列表
+    content_type_variations = [
+        # 标准编码
+        "application/x-www-form-urlencoded;charset=ibm037",
+        # 多部分表单数据
+        "multipart/form-data; charset=ibm037,boundary=blah",
+        "multipart/form-data; boundary=blah ; charset=ibm037",
+        # 多内容类型
+        "text/html; charset=UTF-8 application/json; charset=utf-8",
+        
+        # 额外的变体
+        "application/json;charset=windows-1252",
+        "text/plain;charset=iso-8859-1",
+        "application/xml;charset=shift_jis",
+        
+        # 带空格和特殊字符的变体
+        # " application/x-www-form-urlencoded ; charset = utf-8 ",
+        # "multipart/form-data;  boundary = test-boundary ; charset=gb2312 ",
+    ]
+    weights = [0.58] + [0.07] * 6
+    content_type=random.choices(content_type_variations,weights=weights)[0]
+
+    # content_type=random.choice(content_type_variations)
+    # input()
+    # 修改请求头中的 Content-Type
+    modified_headers = headers.copy()
+    # print(modified_headers['Content-Type'])
+    modified_headers['Content-Type'] = content_type
+    # print(content_type)
+    # input()
+
+    
+    mutant_payloads.append({
+        'headers': modified_headers,
+        'url': url,
+        'method': method,
+        'data': data,
+        'files': files
+    })
+
+    logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
+
+    return mutant_payloads
+def mutant_methods_add_accept_charset(headers, url, method, data, files):
+    """
+    生成不同的 Content-Type 和字符集变体
+
+    """
+    logger.info(TAG + "==>mutant_methods_change_charset")
+    # logger.debug(TAG + "==>headers: " + str(headers))
+
+    mutant_payloads = []
+
+
+    # 字符集变体列表
+    charset_variations = [
+        "utf-32; q=0.5",  # 原始要求
+        "utf-8; q=1.0",
+        "iso-8859-1; q=0.8",
+        "windows-1252; q=0.3",
+        "utf-16; q=0.7",
+        "gb2312; q=0.6",
+        "shift_jis; q=0.4",
+        "utf-32; q=0.5, utf-8; q=1.0",  # 多字符集
+        "* ; q=0.1",  # 通配符
+    ]
+    
+    weights = [0.66] + [0.03] * 8
+    content_type= random.choices(charset_variations,weights=weights)[0]
+    # 修改请求头中的 Content-Type
+    modified_headers = headers.copy()
+    # print(modified_headers['Content-Type'])
+    modified_headers['Accept-Charset'] = content_type
+    # print(headers)
+    # print(modified_headers)
+    # input()
+    mutant_payloads.append({
+        'headers': modified_headers,
+        'url': url,
+        'method': method,
+        'data': data,
+        'files': files
+    })
+    
+
+    logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
+
+    return mutant_payloads
+
+
+def mutant_methods_fake_IP(headers, url, method, data, files):
+    """
+    随机向headers中注入IP欺骗相关的头部信息
+    
+    Args:
+        headers (dict): 原始HTTP请求头
+    
+    Returns:
+        dict: 添加了随机IP头部的请求头
+    """
+    logger.info(TAG + "==>mutant_methods_fake_IP")
+    mutant_payloads = []
+    # IP欺骗相关的头部列表
+    ip_headers = [
+        "X-Originating-IP",
+        "X-Forwarded-For", 
+        "X-Remote-IP", 
+        "X-Remote-Addr", 
+        "X-Client-IP"
+    ]
+    
+    # 可选的IP地址列表
+    ip_addresses = [
+        "127.0.0.1",   # 本地回环地址
+        "192.168.1.1", # 私有网段
+        "10.0.0.1",    # 私有网段
+        "172.16.0.1"   # 私有网段
+    ]
+    
+    # 复制原始headers,避免修改原始对象
+    modified_headers = headers.copy()
+    
+    # 随机选择要添加的头部数量(1-3个)
+    num_headers_to_add = random.randint(1, 3)
+    
+    # 随机选择要添加的头部
+    selected_headers = random.sample(ip_headers, num_headers_to_add)
+    
+    # 随机选择IP地址
+    for header in selected_headers:
+        ip = random.choice(ip_addresses)
+        modified_headers[header] = ip
+    
+    mutant_payloads.append({
+        'headers': modified_headers,
+        'url': url,
+        'method': method,
+        'data': data,
+        'files': files
+    })
+
+    # print(mutant_payloads)
+    # input()
+    logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
+    return mutant_payloads
+    
+
+
+
+
+
+
+def mutant_methods_peremeter_pollution_case1(headers, url, method, data, files):
+    '''
+    服务器使用最后收到的参数, WAF 只检查第一个参数。
+    '''
+    
+    logger.info(TAG + "==>mutant_methods_peremeter_pollution_case1")
+    # logger.debug(TAG + "==>headers: " + str(headers))
+
+    mutant_payloads = []
+
+
+    if data:
+
+        plt_data=""
+        if type(data)==str:
+            if "=" in data:
+                no_poc=random.choice(["ls","1","1.jpg"])
+                pere=data.split("=")[0]
+                poc=data.split("=")[1]
+                for _ in range(3):
+                    plt_data+=pere+"="+no_poc+"\n"
+                plt_data+=pere+"="+poc  
+            if ":" in data:
+                no_poc=random.choice(["\"ls\"}","\"1\"}","\"1.jpg\"}"])
+                pere=data.split(":")[0]
+                poc=data.split(":")[1]
+                for _ in range(3):
+                    plt_data+=pere+":"+no_poc+"\n"
+                plt_data+=pere+":"+poc 
+        else:
+            plt_data=data
+        
+    
+        mutant_payloads.append({
+                'headers': headers,
+                'url': url,
+                'method': method,
+                'data': plt_data,
+                'files': files
+            })
+    else:    
+        parsed_url=urllib.parse.urlparse(url)
+        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
+        query_params = urllib.parse.parse_qs(parsed_url.query, keep_blank_values=True)
+            # 为每个参数创建重复的测试用例
+        for param, values in query_params.items():
+            original_value = values[0]
+        
+            # 构造重复参数
+            duplicate_params = []
+            
+            for _ in range(3):  # 创建3个重复参数
+                duplicate_params.append((param, "1"))
+
+            duplicate_params.append((param,original_value))
+            # 添加其他原始参数
+            for other_param, other_values in query_params.items():
+                if other_param != param:
+                    duplicate_params.append((other_param, other_values[0]))
+        
+            # 构造新的查询字符串
+            query_string = '&'.join(f"{p}={v}" for p, v in duplicate_params)
+            test_url = f"{base_url}?{query_string}"
+    
+            mutant_payloads.append({
+                'headers': headers,
+                'url': test_url,
+                'method': method,
+                'data': data,
+                'files': files
+            })
+
+    logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
+    print(mutant_payloads)
+    # input("")
+    return mutant_payloads
+def mutant_methods_peremeter_pollution_case2(headers, url, method, data, files):
+    '''
+    服务器将来自相似参数的值合并,WAF 会单独检查它们。
+    '''
+    logger.info(TAG + "==>mutant_methods_for_test_use")
+    # logger.debug(TAG + "==>headers: " + str(headers))
+
+    mutant_payloads = []
+    if data:
+        plt_data=""
+        
+        if type(data)==str:
+            if "=" in data:
+                pere=data.split("=")[0]
+                poc=data.split("=")[1]
+                point1 = random.randint(1, len(poc) - 2)
+                point2 = random.randint(point1 + 1, len(poc) - 1)
+                part=[]
+                part.append(poc[:point1]) 
+                part.append(poc[point1:point2])
+                part.append(poc[point2:])
+                for i in range(3):
+                    plt_data+=pere+"="+part[i]+"\n"
+            if ":" in data:
+
+                pere=data.split(":")[0]
+                poc=data.split(":")[1]
+                point1 = random.randint(1, len(poc) - 2)
+                point2 = random.randint(point1 + 1, len(poc) - 1)
+                part=[]
+                part.append(poc[:point1]) 
+                part.append(poc[point1:point2])
+                part.append(poc[point2:])
+                for i in range(3):
+                    plt_data+=pere+":"+part[i]+"\n"
+            print(plt_data)
+
+        else:
+            plt_data=data
+            # pere=data.keys()
+            # for pere in list(data.keys()):
+            #     poc=data[pere]
+
+    
+        mutant_payloads.append({
+                'headers': headers,
+                'url': url,
+                'method': method,
+                'data': plt_data,
+                'files': files
+            })
+    else:    
+        parsed_url=urllib.parse.urlparse(url)
+        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
+        query_params = urllib.parse.parse_qs(parsed_url.query, keep_blank_values=True)
+            # 为每个参数创建重复的测试用例
+        for param, values in query_params.items():
+            original_value = values[0]
+        
+            # 构造重复参数
+            duplicate_params = []
+            
+            for _ in range(3):  # 创建3个重复参数
+                duplicate_params.append((param, "1"))
+
+            duplicate_params.append((param,original_value))
+            # 添加其他原始参数
+            for other_param, other_values in query_params.items():
+                if other_param != param:
+                    duplicate_params.append((other_param, other_values[0]))
+        
+            # 构造新的查询字符串
+            query_string = '&'.join(f"{p}={v}" for p, v in duplicate_params)
+            test_url = f"{base_url}?{query_string}"
+    
+            mutant_payloads.append({
+                'headers': headers,
+                'url': test_url,
+                'method': method,
+                'data': data,
+                'files': files
+            })
+
+    logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
+    print(mutant_payloads)
+    # input("")
+    return mutant_payloads
 
 def mutant_methods_multipart_boundary(headers, url, method, data, files):
     """ 对 boundary 进行变异进而绕过"""
@@ -687,6 +1041,12 @@ mutant_methods_chunked_transfer_encoding
 mutant_methods_multipart_form_data
 mutant_methods_sql_comment_obfuscation
 mutant_methods_convert_get_to_post
+mutant_methods_peremeter_pollution_case1
+mutant_methods_peremeter_pollution_case2
+mutant_methods_fake_IP
+mutant_methods_change_charset
+mutant_methods_add_accept_charset
+mutant_methods_change_extensions
 '''
 # 为变异方法添加开关
 mutant_methods_config = {
@@ -708,6 +1068,12 @@ mutant_methods_config = {
     "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data, True),
     "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation, False),
     "mutant_methods_convert_get_to_post": (mutant_methods_convert_get_to_post, False),
+    # "mutant_methods_peremeter_pollution_case1": (mutant_methods_peremeter_pollution_case1, True),
+    # "mutant_methods_peremeter_pollution_case2": (mutant_methods_peremeter_pollution_case2, True),
+    # "mutant_methods_fake_IP": (mutant_methods_fake_IP, True),
+    # "mutant_methods_change_charset": (mutant_methods_change_charset, True),
+    # "mutant_methods_add_accept_charset": (mutant_methods_add_accept_charset, True),
+    # "mutant_methods_change_extensions": (mutant_methods_change_extensions, True),
 }
 
 # 初始化启用的变异方法
