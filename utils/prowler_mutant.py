@@ -6,6 +6,7 @@ import random
 import re
 import urllib.parse
 import uuid
+from stable_baselines3 import DQN
 from utils.logUtils import LoggerSingleton
 from utils.dictUtils import content_types
 from utils.prowler_mutant_methods import *
@@ -69,9 +70,10 @@ def dd_mutant(headers,url,method,data,files):
         f.write(json.dumps(content_to_write))
     return sub_mutant_payloads
 
+
+
 def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None,memory=None,deep_mutant=False,dd_enabled=False):
     logger.info(TAG + "==>begin to mutant payloads")
-
     url_backup = copy.deepcopy(url)
     mutant_payloads = []
     if os.path.exists("config/memory.json") and not deep_mutant:
@@ -97,6 +99,25 @@ def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None,memor
                     payload['original_url'] = url
 
                 return mutant_payloads
+    # if rl:
+    #     # 使用强化学习进行策略选择
+    #     logger.info(TAG + "==>use RL to select mutant method")
+    #     action = choose_strategy({
+    #         'headers': headers,
+    #         'url': url,
+    #         'method': method,
+    #         'data': data,
+    #         'files': files
+    #     }, mutant_methods)
+    #     # 调用对应的变异方法
+    #     sub_mutant_payloads = mutant_methods[action](headers, url, method, data, files)
+    #     logger.info(TAG + "==>found url in memory, use method: " + mem_dict[__url])
+    #     # keep original url for result
+    #     mutant_payloads.extend(sub_mutant_payloads)
+    #     for payload in mutant_payloads:
+    #         payload['original_url'] = url
+    #     logger.info(TAG + "==>RL selected method: " + str(mutant_methods[action]))
+    #     return mutant_payloads
     else :
         #打印当前路径
         logger.info(os.getcwd())

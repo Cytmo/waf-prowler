@@ -1,9 +1,10 @@
 import json
 import os
+import time
 import requests
 # from utils.prowler_mutant import prowler_begin_to_mutant_payloads
 from utils.prowler_mutant import prowler_begin_to_mutant_payloads
-from utils.prowler_rl_based_mutant import prowler_begin_to_mutant_payloads as rl_based_mutant
+from utils.prowler_rl import prowler_begin_to_mutant_payload_with_rl
 from utils.logUtils import LoggerSingleton
 from utils.recordResUtils import JSONLogger
 import http.client
@@ -17,9 +18,6 @@ logger = LoggerSingleton().get_logger()
 resLogger = JSONLogger()
 TAG = "prowler_process_requests.py: "
 
-def rl_based_mutant_payloads(headers, url, method, data=None, deep_mutant=False):
-    mutant_payloads = rl_based_mutant(headers, url, method, data, deep_mutant)
-    return mutant_payloads
 
 def handle_json_response(response):
     try:
@@ -261,7 +259,7 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                     # 获取变异后的 payloads
                     if rl:
                     # mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
-                        mutant_payloads = rl_based_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
+                        mutant_payloads = prowler_begin_to_mutant_payload_with_rl(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body)
                     else:
                         mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
                     # 遍历 mutant_payloads 执行 payload
@@ -287,6 +285,11 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
 
                     # 如果还未成功并且 deep_mutant 为 False，进行深度变异
                     if not success_after_mutant and not deep_mutant:
+                        # 若强化学习失败，使用普通变异
+                        # if rl:
+                        #     rl = False
+                        #     logger.warning(TAG + "==>url: " + result['url'] + " rl failed, use normal mutant")
+                        #     time.sleep(10)
                         if method != 'GET':
                             end_mutant = True
                         else:
@@ -296,6 +299,4 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                     elif not success_after_mutant and deep_mutant:
                         logger.warning(TAG + "==>url: " + result['url'] + " deep mutant failed")
                         end_mutant = True
-
-    
     return results

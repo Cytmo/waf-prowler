@@ -58,6 +58,7 @@ def get_unformatted_payload(json_path):
     files = jdata.get('files', None)
  
     # 确保文件字段是元组格式
+    print(files)
     if files and isinstance(files, dict):
         files = {
             key: (file_info['filename'], file_info['content'], file_info['content_type'])
