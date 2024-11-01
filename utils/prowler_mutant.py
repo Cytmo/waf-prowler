@@ -164,4 +164,28 @@ def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None,memor
     # keep original url for result
     for payload in mutant_payloads:
         payload['original_url'] = url_backup
+    # 若执行了某变异方法后，本来持有的参数变为None，抛出异常
+    #检查初始payload含有的参数是否为空
+    initial_payload_status = {
+        'have_headers': True if headers else False,
+        'have_url': True if url else False,
+        'have_method': True if method else False,
+        'have_data': True if data else False,
+        'have_files': True if files else False
+    }
+    for payload in mutant_payloads:
+        #检查变异后的payload含有的参数是否为空与initial_payload_status进行比较
+        if not payload['headers'] and initial_payload_status['have_headers'] and not payload['url'] and initial_payload_status['have_url'] and not payload['method'] and initial_payload_status['have_method'] and not payload['data'] and initial_payload_status['have_data'] and not payload['files'] and initial_payload_status['have_files']:
+            logger.info(TAG + "initial headers: " + str(headers))
+            logger.info(TAG + "initial url: " + str(url))
+            logger.info(TAG + "initial method: " + str(method))
+            logger.info(TAG + "initial data: " + str(data))
+            logger.info(TAG + "initial files: " + str(files))
+            logger.info(TAG + "after mutant method: " + str(payload['mutant_method']))
+            logger.info(TAG + "after mutant headers: " + str(payload['headers']))
+            logger.info(TAG + "after mutant url: " + str(payload['url']))
+            logger.info(TAG + "after mutant method: " + str(payload['method']))
+            logger.info(TAG + "after mutant data: " + str(payload['data']))
+            logger.info(TAG + "after mutant files: " + str(payload['files']))
+            raise Exception("==>None parameter after mutant method")
     return mutant_payloads

@@ -128,37 +128,37 @@ def parse_response(response):
 
     return data
 
-
-def send_requests(prep_request):
-    url = urlparse(prep_request.url)
-    logger.debug(TAG + "==>url: " + str(prep_request.url))
-    # print content of request
-    # logger.debug(TAG + "==>prep_request: " + str(prep_request))
-    conn = http.client.HTTPConnection(url.netloc)
+def send_requests(prep_request, timeout=5):
+    url = urlparse(prep_request.get('url'))
+    logger.debug(TAG + "==>url: " + str(prep_request.get('url')))
+    # 创建 HTTP 连接并设置超时
+    conn = http.client.HTTPConnection(url.netloc, timeout=timeout)
+    
     try:
-        conn.request(prep_request.method, prep_request.url, headers=prep_request.headers, body=prep_request.body)
+        # 发出请求
+        conn.request(prep_request.get('method'), url.path, body=prep_request.get('body'), headers=prep_request.get('headers'))
     except Exception as e:
-        logger.error(TAG + "==>error: " + str(e))
+        logger.error(TAG + "==>error in sending request: " + str(e))
         response = requests.Response()
-        # response.text = None
-        # response.status_code = None
         return response
+    
     try:
+        # 获取响应，超时将导致异常
         response = conn.getresponse()
     except Exception as e:
-        logger.error(TAG + "==>error: " + str(e))
+        logger.error(TAG + "==>error in receiving response: " + str(e))
         response = requests.Response()
-        # response.text = None
-        # response.status_code = None
         return response
+
+    # 记录响应状态
     temp_log = f"Response status: {response.status} {response.reason} {response.msg}"
     logger.info(TAG + temp_log)
-    # 读取响应体内容
     
+    # 读取响应体内容
     response_body = parse_response(response)
-
-
     logger.info(TAG + str(response_body))
+    
+    # 将响应内容赋值给 response
     response.text = response_body
     response.status_code = response.status
 
@@ -199,7 +199,7 @@ def process_requests(headers, url, method, data=None, files=None):
         return None
 
 
-def run_payload(payload, host=None, port=None, waf=False):
+def run_payload(payload, host=None, port=None, waf=True):
     logger.info(TAG + "==>run payload: " + str(payload))
     url = payload['url']
     # todo: more sophiscated way to obtain waf payload
@@ -214,13 +214,16 @@ def run_payload(payload, host=None, port=None, waf=False):
         original_url = payload['original_url']
         if waf:
             original_url = original_url.replace("8001", "9001").replace("8002", "9002").replace("8003", "9003")
-
-    headers = payload['headers']
-    data = payload.get('data', None)
-    files = payload.get('files', None)
-    verify = payload.get('verify', False)
-    method = payload['method']
-    processed_req = process_requests(headers, url, method, data=data, files=files)
+    # processed_req = process_requests(headers, url, method, data=data, files=files)
+    processed_req = {
+        "url": url,
+        "headers": payload.get('headers', None),
+        "method": payload.get('method', None),
+        "body": payload.get('body', None),
+    }
+    # print(payload)
+    # print(processed_req)
+    # exit()
     response = send_requests(processed_req)
     logger.info(TAG + "==>send payload to " + url)
     logger.info(TAG + "==>response: " + str(response))
@@ -248,7 +251,7 @@ def run_payload(payload, host=None, port=None, waf=False):
 
 # 获取启用的变异方法
 enabled_mutant_methods = [
-    (name, func) for name, (func, enabled) in mutant_methods_config.items() if enabled
+    (name, func) for name, (func, enabled) in mutant_methods_config_for_rl.items() if enabled
 ]
 # 测试，仅使用 mutant_methods_modify_content_type,fake_content_type,add_harmless_command_for_get_request
 # enabled_mutant_methods = [
@@ -256,7 +259,12 @@ enabled_mutant_methods = [
 #     ('mutant_methods_fake_content_type', mutant_methods_fake_content_type),
 #     ('mutant_methods_add_harmless_command_for_get_request', mutant_methods_add_harmless_command_for_get_request)
 # ]
-logger.info(TAG + "Enabled Mutant Methods: " + str(enabled_mutant_methods))
+logger.warning(TAG + "Enabled Mutant Methods: " + str(enabled_mutant_methods))
+# convert GET to POST
+deep_mutant_methods = [
+    (name, func) for name, (func, enabled) in deep_mutant_methods_config.items() if enabled
+]
+logger.warning(TAG + "Deep Mutant Methods: " + str(deep_mutant_methods))
 # 发送请求的函数
 def send_request(url, method, headers, data, files):
     try:
@@ -275,169 +283,20 @@ def send_request(url, method, headers, data, files):
         logger.warning(TAG + "==> 发送请求时出错: " + str(e))
         return 0
 
-
-# class WAFBypassEnv(gym.Env):
-#     def __init__(self, enabled_methods, payload_for_rl):
-#         super(WAFBypassEnv, self).__init__()
-        
-#         # 初始化初始payload
-#         self.initial_payload = copy.deepcopy(payload_for_rl)
-#         self.initial_payload = {
-#             'headers': payload_for_rl.get('headers', None),
-#             'url': payload_for_rl.get('url', None),
-#             'method': payload_for_rl.get('method', None),
-#             'data': payload_for_rl.get('data', None),
-#             'files': payload_for_rl.get('files', None)
-#         }
-#         self.payload = copy.deepcopy(self.initial_payload)
-        
-#         # 变异方法数量
-#         self.num_methods = len(enabled_methods)
-        
-#         # 调整后的特征维度设置
-#         self.payload_dim = 100  # 增加特征维度以捕获更多信息
-#         self.url_dim = 50       # 同样增加URL的特征维度
-        
-#         # 动作空间和状态空间
-#         self.action_space = spaces.Discrete(self.num_methods)
-#         self.observation_space = spaces.Box(
-#             low=0, high=1,
-#             shape=(self.num_methods + self.num_methods + self.payload_dim + self.url_dim,),
-#             dtype=np.float32
-#         )
-
-#         # 状态初始化
-#         self.state = np.zeros(self.num_methods + self.num_methods + self.payload_dim + self.url_dim, dtype=np.float32)
-#         self.failed_methods = np.zeros(self.num_methods, dtype=np.float32)  # 记录失败的变异方法
-#         self.action_history = np.zeros(self.num_methods, dtype=np.float32)  # 记录已经采取的动作
-#         self.success = False
-#         self.max_steps = 2 * self.num_methods
-#         self.current_step = 0
-#         self.enabled_methods = enabled_methods
-        
-#         # 初始化特征提取器，调整max_features参数
-#         max_feature_dim = max(self.payload_dim, self.url_dim)
-#         self.vectorizer = TfidfVectorizer(max_features=max_feature_dim)
-#         self.fit_vectorizer()
-        
-#     def fit_vectorizer(self):
-#         # 使用更多的文本数据来训练矢量化器，以获得更好的特征表示
-#         texts = [
-#             str(self.initial_payload['url']), 
-#             str(self.initial_payload.get('data', '')), 
-#             str(self.initial_payload.get('headers', ''))
-#         ]
-#         self.vectorizer.fit(texts)
-        
-#     def reset(self, *, seed=None, options=None):
-#         self.current_step = 0
-#         self.success = False
-#         self.failed_methods = np.zeros(self.num_methods, dtype=np.float32)  # 重置失败记录
-#         self.action_history = np.zeros(self.num_methods, dtype=np.float32)   # 重置动作历史
-#         self.payload = copy.deepcopy(self.initial_payload)
-#         self.state = self._get_state()
-#         return self.state, {}
-    
-#     def extract_features(self, text, feature_dim):
-#         # 从文本中提取特征，调整为新的特征维度
-#         text = str(text) if not isinstance(text, str) else text
-#         features = self.vectorizer.transform([text]).toarray().flatten()
-#         # 填充或截断特征到指定的固定长度
-#         features = features[:feature_dim]
-#         return np.pad(features, (0, feature_dim - len(features)), 'constant').astype(np.float32)
-    
-#     def _get_state(self):
-#         # 状态包含：失败方法记录 + 动作历史 + payload 特征 + url 特征
-#         payload_features = self.extract_features(self.payload.get('data', ''), self.payload_dim)
-#         url_features = self.extract_features(self.payload['url'], self.url_dim)
-#         return np.concatenate([self.failed_methods, self.action_history, payload_features, url_features]).astype(np.float32)
-    
-#     def step(self, action):
-#         self.current_step += 1
-#         name, func = self.enabled_methods[action]
-        
-#         # 嵌套变异方法
-#         self.action_history[action] = 1
-#         payload_to_mutate = copy.deepcopy(self.payload)
-#         # try:
-#         self.payloads = func(
-#             payload_to_mutate.get('headers', None),
-#             payload_to_mutate.get('url', None),
-#             payload_to_mutate.get('method', None),
-#             payload_to_mutate.get('data', None),
-#             payload_to_mutate.get('files', None)
-#         )
-#         # except Exception as e:
-#         #     logger.error(f"Error applying mutation method '{name}': {e}")
-#         #     self.payloads = [self.payload]
-#         #     exit()
-        
-#         # 更新 payload 和 state
-#         self.payload = self.payloads[0] if self.payloads else self.payload
-#         self.state = self._get_state()
-        
-#         # 奖励计算和失败标记
-#         try:
-#             reward, self.success = self._calculate_reward()
-#         except Exception as e:
-#             logger.error(f"Error calculating reward: {e}")
-#             reward = -50
-#             self.success = False
-#         if not self.success:
-#             self.failed_methods[action] = 1  # 标记当前方法失败
-        
-#         done = self.success or self.current_step >= self.max_steps
-#         truncated = False
-#         info = {}
-#         return self.state, reward, done, truncated, info
-    
-#     def _calculate_reward(self):
-#         """根据 WAF 返回的状态码计算奖励"""
-#         reward = -10  # 默认的负奖励
-#         success = False
-#         for payload in self.payloads:
-#             try:
-#                 # 调用 run_payload，移除不必要的 None 参数
-#                 result = run_payload(payload, None,None,waf=True)
-#                 status_code = result.get('response_status_code', 0)
-
-#                 if status_code == 200:
-#                     reward = 30  # 成功奖励
-#                     success = True
-#                     logger.warning(f"WAF Bypassed: {payload['url']}")
-#                     break  # 成功绕过，退出循环
-#                 # elif status_code == 400:
-#                 #     reward = -10  # 请求错误，适度的负奖励
-#                 elif status_code == 403:
-#                     reward = -30  # 被 WAF 拦截，较大的负奖励
-#                 elif 500 <= status_code < 600:
-#                     reward = -20  # 服务器错误，中等负奖励
-#                 else:
-#                     reward = -15  # 其他状态码，适度的负奖励
-#             except Exception as e:
-#                 logger.error(f"Error running payload: {e}")
-#                 reward = -50  # 异常情况，较大负奖励
-#                 success = False
-#                 break  # 发生异常，退出循环
-#         return reward, success
-
-
-
-
 class WAFBypassEnv(gym.Env):
     def __init__(self, enabled_methods, payload_for_rl):
         super(WAFBypassEnv, self).__init__()
-        
         # 初始化初始payload
-        self.initial_payload = copy.deepcopy(payload_for_rl)
         self.initial_payload = {
-            'headers': payload_for_rl.get('headers', None),
-            'url': payload_for_rl.get('url', None),
-            'method': payload_for_rl.get('method', None),
-            'data': payload_for_rl.get('data', None),
-            'files': payload_for_rl.get('files', None)
+            'headers': payload_for_rl.headers,
+            'url': payload_for_rl.url,
+            'method': payload_for_rl.method,
+            'body': payload_for_rl.body,
         }
+
+        
         self.payload = copy.deepcopy(self.initial_payload)
+        
         
         # 变异方法数量
         self.num_methods = len(enabled_methods)
@@ -452,12 +311,17 @@ class WAFBypassEnv(gym.Env):
         # - 跳过动作
         # - 对每个变异方法，智能体可以选择应用的次数（例如1到3次）
         # - 组合多个变异方法
+        # - 特定的变异方法
         self.max_mutation_times = 3  # 允许的最大变异次数
         self.total_actions = self.num_methods * self.max_mutation_times + 2  # 加上恢复和跳过动作
 
         self.ACTION_RESTORE = self.total_actions - 2  # 恢复原始payload的动作索引
         self.ACTION_SKIP = self.total_actions - 1     # 跳过动作的索引
+        # 增加一个特定的变异方法动作
+        self.ACTION_SPECIAL_MUTATION = self.total_actions
+        self.total_actions += 1  # 更新总动作数以包含新动作
 
+        # 重新定义动作空间
         self.action_space = spaces.MultiBinary(self.total_actions)
         self.observation_space = spaces.Box(
             low=0, high=1,
@@ -481,11 +345,7 @@ class WAFBypassEnv(gym.Env):
         
     def fit_vectorizer(self):
         # 使用更多的文本数据来训练矢量化器，以获得更好的特征表示
-        texts = [
-            str(self.initial_payload['url']), 
-            str(self.initial_payload.get('data', '')), 
-            str(self.initial_payload.get('headers', ''))
-        ]
+        texts = [str(self.initial_payload.get('url', '')), str(self.initial_payload.get('body', ''))]
         self.vectorizer.fit(texts)
         
     def reset(self, *, seed=None, options=None):
@@ -507,52 +367,82 @@ class WAFBypassEnv(gym.Env):
     
     def _get_state(self):
         # 状态包含：失败方法记录 + 动作历史 + payload 特征 + url 特征
-        payload_features = self.extract_features(self.payload.get('data', ''), self.payload_dim)
+        payload_features = self.extract_features(self.payload.get('body', ''), self.payload_dim)
         url_features = self.extract_features(self.payload['url'], self.url_dim)
         return np.concatenate([self.failed_methods, self.action_history, payload_features, url_features]).astype(np.float32)
-    
+
     def step(self, action):
         self.current_step += 1
 
         # 记录已采取的动作
         self.action_history = np.logical_or(self.action_history, action).astype(np.float32)
 
+        # 检查恢复和跳过动作
         if action[self.ACTION_RESTORE]:
-            # 恢复原始payload
+            logger.warning("Restoring original payload.")
             self.payload = copy.deepcopy(self.initial_payload)
             self.payloads = [self.payload]
         elif action[self.ACTION_SKIP]:
-            # 跳过，不进行任何操作
+            logger.warning("Skipping, no mutation applied.")
             self.payloads = [self.payload]
         else:
-            # 应用选定的变异方法，考虑次数和组合
-            payload_to_mutate = copy.deepcopy(self.payload)
-            selected_actions = np.where(action[:self.total_actions - 2] == 1)[0]
+            # 检查是否激活了特定变异方法
+            if action[self.ACTION_SPECIAL_MUTATION]:
+                logger.warning("Applying special mutation method.")
+                # 应用其他变异方法
+                payload_to_mutate = copy.deepcopy(self.payload)
+                special_method_name, special_method_func = deep_mutant_methods[0]
+                try:
+                    payloads = special_method_func(
+                        payload_to_mutate.get('headers', None),
+                        payload_to_mutate.get('url', None),
+                        payload_to_mutate.get('method', None),
+                        payload_to_mutate.get('body', None),
+                        None
+                    )
+                    # 使用深复制确保 self.payload 保留所有字段
+                    self.payload = copy.deepcopy(payloads[0]) if payloads else self.payload
+                except Exception as e:
+                    logger.error(f"Error applying special mutation method '{special_method_name}': {e}")
+                    self.failed_methods[self.ACTION_SPECIAL_MUTATION] = 1
+                self.payloads = [payload_to_mutate]
+                self.payload = payload_to_mutate
+            else:
+                logger.warning("Applying mutation methods")
+                # 应用其他变异方法
+                payload_to_mutate = copy.deepcopy(self.payload)
+                selected_actions = np.where(action[:self.total_actions - 3] == 1)[0]  # 更新索引，排除新动作
+                # 解析所选的变异方法和次数
+                for act in selected_actions:
+                    method_index = act // self.max_mutation_times
+                    times = (act % self.max_mutation_times) + 1  # 次数从1开始
+                    name, func = self.enabled_methods[method_index]
+                    for _ in range(times):
+                        try:
+                            payloads = func(
+                                payload_to_mutate.get('headers', None),
+                                payload_to_mutate.get('url', None),
+                                payload_to_mutate.get('method', None),
+                                payload_to_mutate.get('body', None),
+                                None
+                            )
+                            logger.warning(f"Applying mutation method '{name}' {times} times.")
+                            payload_to_mutate = copy.deepcopy(payloads[0]) if payloads else payload_to_mutate
+                        except Exception as e:
+                            logger.error(f"Error applying mutation method '{name}': {e}")
+                            self.failed_methods[act] = 1  # 标记当前方法失败
+                            break
 
-            # 解析所选的变异方法和次数
-            for act in selected_actions:
-                method_index = act // self.max_mutation_times
-                times = (act % self.max_mutation_times) + 1  # 次数从1开始
-
-                name, func = self.enabled_methods[method_index]
-                for _ in range(times):
-                    try:
-                        payloads = func(
-                            payload_to_mutate.get('headers', None),
-                            payload_to_mutate.get('url', None),
-                            payload_to_mutate.get('method', None),
-                            payload_to_mutate.get('data', None),
-                            payload_to_mutate.get('files', None)
-                        )
-                        # 假设每个变异方法返回一个列表，这里取第一个结果
-                        payload_to_mutate = payloads[0] if payloads else payload_to_mutate
-                    except Exception as e:
-                        logger.error(f"Error applying mutation method '{name}': {e}")
-                        self.failed_methods[act] = 1  # 标记当前方法失败
-                        break  # 跳出当前循环，尝试下一个方法
-
-            self.payloads = [payload_to_mutate]
-            self.payload = payload_to_mutate
+                self.payloads = [payload_to_mutate]
+                self.payload = payload_to_mutate
+        
+        for payload in self.payloads:
+            if 'headers' not in payload or 'url' not in payload or 'method' not in payload or 'body' not in payload:
+                logger.warning("Payload missing required fields")
+                logger.warning("Original Payload: " + str(self.initial_payload))
+                logger.warning("Current Payload: " + str(self.payload))
+                logger.warning("Payloads: " + str(self.payloads))
+                raise ValueError("Payload missing required fields")
 
         # 更新状态
         self.state = self._get_state()
@@ -564,41 +454,51 @@ class WAFBypassEnv(gym.Env):
             logger.error(f"Error calculating reward: {e}")
             reward = -50
             self.success = False
+            raise e
 
         done = self.success or self.current_step >= self.max_steps
         truncated = False
         info = {}
         return self.state, reward, done, truncated, info
+
+
     
     def _calculate_reward(self):
         """根据 WAF 返回的状态码计算奖励"""
-        reward = -10  # 默认的负奖励
+        reward = -50  # 默认的负奖励
         success = False
-        # 若生成的payload过长，直接返回负奖励
-        if len(self.payload['url']) > 2000:
-            return -50, False
         for payload in self.payloads:
-            try:
-                # 调用 run_payload，移除不必要的 None 参数
-                result = run_payload(payload, waf=True)
-                status_code = result.get('response_status_code', 0)
-
-                if status_code == 200:
-                    reward = 50  # 成功奖励
-                    success = True
-                    logger.warning(f"WAF Bypassed: {payload['url']}")
-                    break  # 成功绕过，退出循环
-                elif status_code == 403:
-                    reward = -30  # 被 WAF 拦截，较大的负奖励
-                elif 500 <= status_code < 600:
-                    reward = -20  # 服务器错误，中等负奖励
-                else:
-                    reward = -15  # 其他状态码，适度的负奖励
-            except Exception as e:
-                logger.error(f"Error running payload: {e}")
-                reward = -50  # 异常情况，较大负奖励
+            if len(str(payload)) >= 3000:
+                logger.info(TAG + "==>payload too long, skip")
+                reward = -100
                 success = False
-                break  # 发生异常，退出循环
+                break
+            # try:
+            # 调用 run_payload，移除不必要的 None 参数
+            result = run_payload(payload, waf=True)
+            status_code = result.get('response_status_code', 0)
+            if status_code == 200:
+                reward = 200  # 成功奖励
+                success = True
+                logger.warning(f"WAF Bypassed: {payload['url']}")
+                break  # 成功绕过，退出循环
+            elif status_code == 403:
+                reward = -30  # 被 WAF 拦截，较大的负奖励
+            else:
+                reward = -100
+            # else 500 <= status_code < 600:
+            #     reward = -20  # 服务器错误，中等负奖励
+            # else:
+            #     reward = -15
+            # else:
+            #     reward = -15  # 其他状态码，适度的负奖励
+            # except Exception as e:
+            #     logger.error(f"Error running payload: {e}")
+            #     reward = -50  # 异常情况，较大负奖励
+            #     success = False
+            #     # raise e
+            #     exit()
+                # break  # 发生异常，退出循环
         return reward, success
 
 def initialize_model(payload, enabled_mutant_methods, model_path="ppo_waf_bypass"):
@@ -629,17 +529,18 @@ def train_model(model, payloads, enabled_mutant_methods, total_timesteps=5000):
     """遍历 payloads 并逐个训练模型"""
     for i, payload_for_rl in enumerate(payloads):
         env = WAFBypassEnv(enabled_mutant_methods, payload_for_rl)
-        
+
         # 更新模型的环境
         model.set_env(env)
         logger.warning(f"Training on payload {i + 1}/{len(payloads)}")
-        
+        # show payload
+        logger.warning(f"Payload: {payload_for_rl}")
         # 可选的休眠观察
         time.sleep(5)
         model.learn(total_timesteps=total_timesteps)
-        
-        # 保存中间状态（可选）
-        model.save(f"ppo_waf_bypass_payload_{i + 1}")
+        break
+        # # 保存中间状态（可选）
+        # model.save(f"ppo_waf_bypass_payload_{i + 1}")
 
     # 最终保存模型
     model.save("ppo_waf_bypass")
@@ -667,8 +568,7 @@ def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=No
         'headers': headers,
         'url': url,
         'method': method,
-        'data': data,
-        'files': files
+        'body': data
     })
 
     # 加载预训练的模型
@@ -711,11 +611,21 @@ if __name__ == "__main__":
     # 加载并解析 payloads
     payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload("config/payload/json")
 
-    # 初始化模型
-    model = initialize_model(payloads[0], enabled_mutant_methods)
-    
+
+    payloads_processed = []
+    for payload in payloads:
+        new_payload = process_requests(   
+            payload['headers'],
+            payload['url'],
+            payload['method'],
+            payload.get('data', None),
+            payload.get('files', None)
+            )
+        payloads_processed.append(new_payload)
+        # 初始化模型
+    model = initialize_model(payloads_processed[0], enabled_mutant_methods)
     # 训练模型
-    train_model(model, payloads, enabled_mutant_methods, total_timesteps=5000)
+    train_model(model, payloads_processed, enabled_mutant_methods, total_timesteps=5000)
 
     # 测试模型
     test_env = WAFBypassEnv(enabled_mutant_methods, payloads[0])

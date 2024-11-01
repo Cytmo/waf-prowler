@@ -168,8 +168,8 @@ def mutant_methods_url_encoding(headers, url, method, data, files):
         'headers': headers,
         'url': mutated_url,
         'method': method,
-        'data': mutated_data,
-        'files': mutated_files
+        'data': mutated_data if mutated_data is not None else data,
+        'files': mutated_files if mutated_files is not None else files
     })
 
     return mutant_payloads
@@ -179,17 +179,15 @@ def mutant_methods_url_encoding(headers, url, method, data, files):
 def mutant_upload_methods_double_equals(headers,url,method,data,files):
     logger.info(TAG + "==>mutant_upload_methods_double_equals")
     logger.debug(TAG + "==>headers: " + str(headers))
-
+    if isinstance(data, bytes):
+        
+        data_str = data.decode()
+    else:
+        data_str = data
     mutant_payloads = []
     # 只有 multipart/form-data 才需要可以使用这个方法
     content_type = headers.get('Content-Type')
     if content_type and re.match('multipart/form-data', content_type) or 'filename' in str(data):
-        # 双写等号：如果含有filename，则替换为filename=
-        if isinstance(data, bytes):
-            
-            data_str = data.decode()
-        else:
-            data_str = data
         if 'filename' in data_str:
             data_str = data_str.replace('filename', 'filename=')
             mutant_payloads.append({
@@ -198,6 +196,9 @@ def mutant_upload_methods_double_equals(headers,url,method,data,files):
                         'method': method,
                         'data': data_str
                     })
+    else:
+        logger.info(TAG + "data is" + str(data))
+        logger.info(TAG + "No filename found in data")
     # if files:
     #     if 'filename' in files:
     #         files['filename'] = files['filename'] + "="
@@ -336,12 +337,7 @@ def mutant_methods_multipart_boundary(headers, url, method, data, files):
     if not content_type or not re.match('multipart/form-data', content_type):
         if not 'filename' in str(data):
             return []
-    if isinstance(data, bytes):
-        data_str = data.decode()
-    else:
-        data_str = data
-    # # 解析filename
-    # data_str = data.decode()
+    data_str = data.decode()
     pattern = re.compile(r'Content-Disposition: form-data;.*filename="([^"]+)"')
     filenames = pattern.findall(data_str)
 
@@ -406,6 +402,20 @@ def mutant_methods_add_padding(headers, url, method, data, files):
     logger.info(TAG + "==>mutant_methods_add_padding")
     logger.debug(TAG + "==>headers: " + str(headers))
     mutant_payloads = []
+    # 对于上传请求，在headers中添加无用数据
+    if files:
+        padding_data = 'x' * 1024 * 1
+        for name, file_info in files.items():
+            file_content = file_info.get('content', '')
+            file_info['content'] = padding_data + file_content
+        mutant_payloads.append({
+            'headers': headers,
+            'url': url,
+            'method': method,
+            'data': data,
+            'files': files
+        })
+        return mutant_payloads
     padding_data = 'x' * 1024  * 1  # 5 kB 的无用数据
     # data must not be a string
     if isinstance(data, bytes) and isinstance(padding_data, str):
@@ -417,8 +427,8 @@ def mutant_methods_add_padding(headers, url, method, data, files):
         data += padding_data
     else:
         data = padding_data
-    if isinstance(data, str):
-        data = data.encode()
+    
+    
     mutant_payloads.append({
         'headers': headers,
         'url': url,
@@ -720,8 +730,48 @@ mutant_methods_config = {
     "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation, False),
     "mutant_methods_convert_get_to_post": (mutant_methods_convert_get_to_post, False),
 }
+# 为变异方法添加开关
+mutant_methods_config_for_rl = {
+    "mutant_methods_modify_content_type": (mutant_methods_modify_content_type, True),
+    "mutant_methods_fake_content_type": (mutant_methods_fake_content_type, True),
+    "mutant_methods_case_and_comment_obfuscation": (mutant_methods_case_and_comment_obfuscation, False),
+    "mutant_methods_url_encoding": (mutant_methods_url_encoding, True),
+    "mutant_methods_unicode_normalization": (mutant_methods_unicode_normalization, False),
+    "mutant_methods_line_breaks": (mutant_methods_line_breaks, False),
+    "mutant_methods_add_padding": (mutant_methods_add_padding, True),
+    "mutant_methods_multipart_boundary": (mutant_methods_multipart_boundary, False), # disabled for RL
+    "mutant_upload_methods_double_equals": (mutant_upload_methods_double_equals, True),
+    "mutant_methods_delete_content_type_of_data": (mutant_methods_delete_content_type_of_data, True),
+    "mutant_methods_modify_content_type_case": (mutant_methods_modify_content_type_case, True),
+    "mutant_methods_modify_case_of_content_type": (mutant_methods_modify_case_of_content_type, True),
+    "mutant_methods_add_Content_Type_for_get_request": (mutant_methods_add_Content_Type_for_get_request, True),
+    "mutant_methods_add_harmless_command_for_get_request": (mutant_methods_add_harmless_command_for_get_request, True),
+    "mutant_methods_chunked_transfer_encoding": (mutant_methods_chunked_transfer_encoding, False),
+    "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data, False), # disabled for RL
+    "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation, False),
+    "mutant_methods_convert_get_to_post": (mutant_methods_convert_get_to_post, False),
+}
 
-
+deep_mutant_methods_config = {
+    "mutant_methods_modify_content_type": (mutant_methods_modify_content_type, False),
+    "mutant_methods_fake_content_type": (mutant_methods_fake_content_type,  False),
+    "mutant_methods_case_and_comment_obfuscation": (mutant_methods_case_and_comment_obfuscation, False),
+    "mutant_methods_url_encoding": (mutant_methods_url_encoding,  False),
+    "mutant_methods_unicode_normalization": (mutant_methods_unicode_normalization, False),
+    "mutant_methods_line_breaks": (mutant_methods_line_breaks, False),
+    "mutant_methods_add_padding": (mutant_methods_add_padding,  False),
+    "mutant_methods_multipart_boundary": (mutant_methods_multipart_boundary,  False),
+    "mutant_upload_methods_double_equals": (mutant_upload_methods_double_equals,  False),
+    "mutant_methods_delete_content_type_of_data": (mutant_methods_delete_content_type_of_data,  False),
+    "mutant_methods_modify_content_type_case": (mutant_methods_modify_content_type_case,  False),
+    "mutant_methods_modify_case_of_content_type": (mutant_methods_modify_case_of_content_type,  False),
+    "mutant_methods_add_Content_Type_for_get_request": (mutant_methods_add_Content_Type_for_get_request,  False),
+    "mutant_methods_add_harmless_command_for_get_request": (mutant_methods_add_harmless_command_for_get_request,  False),
+    "mutant_methods_chunked_transfer_encoding": (mutant_methods_chunked_transfer_encoding, False),
+    "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data,  False),
+    "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation,  False),
+    "mutant_methods_convert_get_to_post": (mutant_methods_convert_get_to_post, True),
+}
 # 生成两两组合的变异方法
 def generate_combinations(mutant_methods):
     """ 生成两两组合的变异方法 """
@@ -735,6 +785,18 @@ mutant_methods = [
     method for method, enabled in mutant_methods_config.values()
     if enabled
 ]
+
+
+disabled_mutant_methods = [
+    method for method, enabled in mutant_methods_config.values()
+    if not enabled
+]
+# convert GET to POST
+deep_mutant_methods = [
+    method for method, enabled in deep_mutant_methods_config.values()
+    if enabled
+]
+    
 
 if __name__ == '__main__':
     # 测试变异方法
