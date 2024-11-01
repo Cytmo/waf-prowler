@@ -103,12 +103,12 @@ def parse_response(response):
     return data
 
 
-def send_requests(prep_request):
+def send_requests(prep_request, timeout=3):
     url = urlparse(prep_request.url)
     logger.debug(TAG + "==>url: " + str(prep_request.url))
     # print content of request
     # logger.debug(TAG + "==>prep_request: " + str(prep_request))
-    conn = http.client.HTTPConnection(url.netloc)
+    conn = http.client.HTTPConnection(url.netloc, timeout=timeout)
     try:
         conn.request(prep_request.method, prep_request.url, headers=prep_request.headers, body=prep_request.body)
     except Exception as e:

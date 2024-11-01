@@ -337,7 +337,10 @@ def mutant_methods_multipart_boundary(headers, url, method, data, files):
     if not content_type or not re.match('multipart/form-data', content_type):
         if not 'filename' in str(data):
             return []
-    data_str = data.decode()
+    if not isinstance(data, str):
+        data_str = data.decode()
+    else:
+        data_str = data
     pattern = re.compile(r'Content-Disposition: form-data;.*filename="([^"]+)"')
     filenames = pattern.findall(data_str)
 
@@ -739,7 +742,7 @@ mutant_methods_config_for_rl = {
     "mutant_methods_unicode_normalization": (mutant_methods_unicode_normalization, False),
     "mutant_methods_line_breaks": (mutant_methods_line_breaks, False),
     "mutant_methods_add_padding": (mutant_methods_add_padding, True),
-    "mutant_methods_multipart_boundary": (mutant_methods_multipart_boundary, False), # disabled for RL
+    "mutant_methods_multipart_boundary": (mutant_methods_multipart_boundary, True), # disabled for RL
     "mutant_upload_methods_double_equals": (mutant_upload_methods_double_equals, True),
     "mutant_methods_delete_content_type_of_data": (mutant_methods_delete_content_type_of_data, True),
     "mutant_methods_modify_content_type_case": (mutant_methods_modify_content_type_case, True),
@@ -747,7 +750,7 @@ mutant_methods_config_for_rl = {
     "mutant_methods_add_Content_Type_for_get_request": (mutant_methods_add_Content_Type_for_get_request, True),
     "mutant_methods_add_harmless_command_for_get_request": (mutant_methods_add_harmless_command_for_get_request, True),
     "mutant_methods_chunked_transfer_encoding": (mutant_methods_chunked_transfer_encoding, False),
-    "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data, False), # disabled for RL
+    "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data, True), # disabled for RL
     "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation, False),
     "mutant_methods_convert_get_to_post": (mutant_methods_convert_get_to_post, False),
 }
