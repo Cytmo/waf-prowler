@@ -17,7 +17,7 @@ from requests.models import Request, PreparedRequest
 logger = LoggerSingleton().get_logger()
 resLogger = JSONLogger()
 TAG = "prowler_process_requests.py: "
-
+HTTP_CONNECTION_TIMEOUT = 3
 
 def handle_json_response(response):
     try:
@@ -102,8 +102,49 @@ def parse_response(response):
 
     return data
 
+def send_requests_for_rl(prep_request, timeout=HTTP_CONNECTION_TIMEOUT):
+    url = urlparse(prep_request.get('url'))
+    logger.debug(TAG + "==>url: " + str(prep_request.get('url')))
+    # 创建 HTTP 连接并设置超时
+    conn = http.client.HTTPConnection(url.netloc, timeout=timeout)
+    
+    try:
+        # 获取 URL 和 body 并确保 body 为字节类型
+        body = prep_request.get('body')
+        if isinstance(body, str):
+            body = body.encode('utf-8')  # 将字符串编码为字节
+        # 发出请求
+        conn.request(prep_request.get('method'), url.path, body=prep_request.get('body'), headers=prep_request.get('headers'))
+    except Exception as e:
+        logger.error(TAG + "==>error in sending request: " + str(e))
+        response = requests.Response()
+        return response
+    
+    try:
+        # 获取响应，超时将导致异常
+        response = conn.getresponse()
+    except Exception as e:
+        logger.error(TAG + "==>error in receiving response: " + str(e))
+        response = requests.Response()
+        return response
 
-def send_requests(prep_request, timeout=3):
+    # 记录响应状态
+    temp_log = f"Response status: {response.status} {response.reason} {response.msg}"
+    logger.info(TAG + temp_log)
+    
+    # 读取响应体内容
+    response_body = parse_response(response)
+    logger.info(TAG + str(response_body))
+    
+    # 将响应内容赋值给 response
+    response.text = response_body
+    response.status_code = response.status
+
+    # 关闭连接
+    conn.close()
+    return response
+
+def send_requests(prep_request, timeout=HTTP_CONNECTION_TIMEOUT):
     url = urlparse(prep_request.url)
     logger.debug(TAG + "==>url: " + str(prep_request.url))
     # print content of request
@@ -173,6 +214,55 @@ def process_requests(headers, url, method, data=None, files=None):
         return None
 
 
+def run_payload_for_rl(payload, host=None, port=None, waf=True):
+    logger.info(TAG + "==>run payload: " + str(payload))
+    url = payload['url']
+    # todo: more sophiscated way to obtain waf payload
+    if waf:
+        url = url.replace("8001", "9001").replace("8002", "9002").replace("8003", "9003")
+    # for not mutanted payload, copy url as original url
+    # for mutanted payload, use 'original_url' to display result
+
+    if 'original_url' not in payload:
+        original_url = url
+    else:
+        original_url = payload['original_url']
+        if waf:
+            original_url = original_url.replace("8001", "9001").replace("8002", "9002").replace("8003", "9003")
+    # processed_req = process_requests(headers, url, method, data=data, files=files)
+    processed_req = {
+        "url": url,
+        "headers": payload.get('headers', None),
+        "method": payload.get('method', None),
+        "body": payload.get('body', None),
+    }
+    # print(payload)
+    # print(processed_req)
+    # exit()
+    response = send_requests_for_rl(processed_req)
+    logger.info(TAG + "==>send payload to " + url)
+    logger.info(TAG + "==>response: " + str(response))
+    # logger.debug(TAG + "==>response: " + str(response.text))
+    if response is not None:
+        logger.debug(TAG + "==>response: " + str(response.text))
+        result = {
+            'url': url,
+            'original_url': original_url,
+            'payload': str(payload),
+            'response_status_code': response.status_code,
+            'response_text': response.text,
+            'success':''
+        }
+    else:
+        result = {
+            'url': url,
+            'original_url': original_url,
+            'payload': str(payload),
+            'response_status_code': "Error",
+            'response_text': "Error",
+            'success':''
+        }
+    return result
 def run_payload(payload, host, port, waf=False):
     logger.info(TAG + "==>run payload: " + str(payload))
     url = payload['url']
@@ -264,7 +354,10 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                         mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
                     # 遍历 mutant_payloads 执行 payload
                     for mutant_payload in mutant_payloads:
-                        result = run_payload(mutant_payload, host, port, waf)
+                        if rl:
+                            result = run_payload_for_rl(mutant_payload, host, port, waf)
+                        else:
+                            result = run_payload(mutant_payload, host, port, waf)
                         formatted_results = json.dumps(result, indent=4, ensure_ascii=False)
                         logger.debug(TAG + "==>results: " + formatted_results)
                         

@@ -515,11 +515,19 @@ class WAFBypassEnv(gym.Env):
         return reward, success
     def get_payload(self):
         return self.payload
-
+    def get_current_used_methods(self):
+        return self.action_history
 def initialize_model(payload, enabled_mutant_methods, model_path="ppo_waf_bypass"):
     """初始化模型，如果已存在则加载模型，否则创建新模型"""
     try:
-        model = PPO.load(model_path, device="cuda")
+        if not os.path.exists(model_path):
+            # 尝试加载最新的中间模型
+            for i in range(1, 100):
+                model_name = f"ppo_waf_bypass_payload_{i}.zip"
+                if os.path.exists(model_name):
+                    model_path = model_name
+        else:
+            model = PPO.load(model_path, device="cuda")
         # 检查模型的环境状态空间是否与当前环境匹配
         env = WAFBypassEnv(enabled_mutant_methods, payload)
         if model.observation_space.shape != env.observation_space.shape:
@@ -554,7 +562,7 @@ def train_model(model, payloads, enabled_mutant_methods, total_timesteps=50000):
         time.sleep(5)
         model.learn(total_timesteps=total_timesteps)
         # 保存中间状态（可选）
-        break
+        # break
         model.save(f"ppo_waf_bypass_payload_{i + 1}")
 
     # 最终保存模型
@@ -659,7 +667,7 @@ def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=No
     obs, _ = env.reset()
     done = False
     total_reward = 0
-
+    total_steps = 0
     # 使用模型进行推理，直到成功绕过 WAF 或达到最大步骤数
     while not done:
         # 使用模型预测下一个动作
@@ -668,12 +676,21 @@ def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=No
         # 执行动作，获取新的状态和奖励
         obs, reward, done, truncated, info = env.step(action)
         total_reward += reward
-
+        total_steps += 1
         # 仅保留奖励为 100 的 payload
         if reward > 0:
-            mutant_payloads.append(copy.deepcopy(env.get_payload()))
+            currently_used_methods = env.get_current_used_methods()
+            payload = env.get_payload()
+            # get the name of the method
+            used_methods = [enabled_mutant_methods[i][0] for i in range(len(currently_used_methods)) if currently_used_methods[i] == 1]
+            # append currently used methods to payload
+            payload['currently_used_methods'] = used_methods
+            mutant_payloads.append(copy.deepcopy(payload))
             logger.info("Added payload with reward 100 to mutant_payloads")
             break
+        if total_steps >= 20:
+            break
+        
         logger.debug(f"Action: {action}, Reward: {reward}")
 
     logger.info(f"Total Reward: {total_reward}")
@@ -689,6 +706,12 @@ if __name__ == "__main__":
     if "--reset" in sys.argv:
         if os.path.exists("ppo_waf_bypass.zip"):
             os.remove("ppo_waf_bypass.zip")
+            logger.warning("Model reset.")
+        # 移除所有的中间模型
+        for i in range(1, 100):
+            model_name = f"ppo_waf_bypass_payload_{i}.zip"
+            if os.path.exists(model_name):
+                os.remove(model_name)
     if "--verbose" not in sys.argv:
         logger.warning("Verbose mode is disabled.")
         logger.setLevel("WARNING")

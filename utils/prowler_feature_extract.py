@@ -78,12 +78,16 @@ def extract_features(request: Dict[str, Any]) -> np.ndarray:
     header_features = extract_header_features(request["headers"])
     body_features = extract_body_features(request.get("body", ""))
     text_features = extract_text_features(request.get("body", ""))
+    if request.get("body", "") is None:
+        length_of_body = 0
+    else:
+        length_of_body = len(request.get("body", ""))
     # 添加各个子部分的长度信息
     lengths = [
         len(request["url"]),  # URL长度
         len(request["method"]),  # 方法长度
         len(request["headers"]),  # 头部长度
-        len(request.get("body", ""))  # 主体长度
+        length_of_body  # 主体长度
     ]
     features = url_features + [method_feature] + header_features + body_features + text_features+lengths
     return np.array(features)
