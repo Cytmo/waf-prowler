@@ -513,7 +513,8 @@ class WAFBypassEnv(gym.Env):
                     reward -= 20
             logger.info(TAG + "==> Status code: " + str(status_code) + " Reward: " + str(reward))
         return reward, success
-
+    def get_payload(self):
+        return self.payload
 
 def initialize_model(payload, enabled_mutant_methods, model_path="ppo_waf_bypass"):
     """初始化模型，如果已存在则加载模型，否则创建新模型"""
@@ -669,8 +670,8 @@ def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=No
         total_reward += reward
 
         # 仅保留奖励为 100 的 payload
-        if reward == 100:
-            mutant_payloads.append(copy.deepcopy(env.payload))
+        if reward > 0:
+            mutant_payloads.append(copy.deepcopy(env.get_payload()))
             logger.info("Added payload with reward 100 to mutant_payloads")
             break
         logger.debug(f"Action: {action}, Reward: {reward}")
