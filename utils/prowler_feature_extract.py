@@ -1,3 +1,4 @@
+import json
 import os
 import numpy as np
 import re
@@ -15,7 +16,27 @@ from utils.dictUtils import content_types
 logger = LoggerSingleton().get_logger()
 
 TAG = "prolwer_feature_extract.py "
+from sklearn.feature_extraction.text import TfidfVectorizer
+fixed_length = 10
+def dict_to_fixed_length_tfidf_vector(data_dict, fixed_length=fixed_length):
+    # 创建TfidfVectorizer对象
+    vectorizer = TfidfVectorizer()
+    data_dict = str(data_dict)
+    # 将JSON字符串转化为TF-IDF特征向量
+    tfidf_vector = vectorizer.fit_transform([data_dict]).toarray()
+    
+    # 获取特征名称
+    feature_names = vectorizer.get_feature_names_out()
+    
+    # 如果特征数量小于固定长度，进行填充
+    if tfidf_vector.shape[1] < fixed_length:
+        padded_vector = np.pad(tfidf_vector, ((0, 0), (0, fixed_length - tfidf_vector.shape[1])), mode='constant')
+    else:
+        # 选择前fixed_length个特征（根据TF-IDF值的重要性进行选择）
+        important_features = np.argsort(-tfidf_vector.sum(axis=0))[:fixed_length]
+        padded_vector = tfidf_vector[:, important_features]
 
+    return padded_vector
 def extract_url_features(url: str) -> List[int]:
     parsed_url = urlparse(url)
     sql_keywords = {'SELECT', 'UNION', 'DROP', 'password'}
@@ -52,7 +73,10 @@ def extract_body_features(body: Union[str, Dict[str, Any]]) -> List[int]:
         body_length = len(body)
         body_sql_keyword_count = sum(keyword in body for keyword in sql_keywords)
     elif isinstance(body, dict):
-        body_content = " ".join(str(v.get("content", "")) for v in body.values())
+        body_content = " ".join(
+            str(v["content"]) if isinstance(v, dict) and "content" in v else str(v)
+            for v in body.values()
+        )
         body_length = len(body_content)
         body_sql_keyword_count = sum(keyword in body_content for keyword in sql_keywords)
     else:
@@ -60,13 +84,36 @@ def extract_body_features(body: Union[str, Dict[str, Any]]) -> List[int]:
         body_sql_keyword_count = 0
 
     return [body_length, body_sql_keyword_count, special_char_count]
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+def extract_text_features_tfidf(body: Union[str, Dict[str, Any]], vectorizer: TfidfVectorizer) -> np.ndarray:
+    # 如果 body 是字典，处理字典的内容
+    if isinstance(body, dict):
+        body_content = " ".join(
+            str(v["content"]) if isinstance(v, dict) and "content" in v else str(v)
+            for v in body.values()
+        )
+    else:
+        body_content = str(body)
+
+    # 使用TF-IDF提取特征
+    tfidf_matrix = vectorizer.transform([body_content])
+    return tfidf_matrix.toarray()[0]  # 返回一维数组
 
 def extract_text_features(body: Union[str, Dict[str, Any]]) -> List[int]:
     suspicious_terms = ['SELECT', 'DROP', 'INSERT', 'DELETE', 'UNION']
+
+    # 如果 body 是字典，处理字典的内容
     if isinstance(body, dict):
-        body = " ".join(str(v.get("content", "")) for v in body.values())
-    body = str(body)
-    term_counts = [body.lower().count(term.lower()) for term in suspicious_terms]
+        body_content = " ".join(
+            str(v["content"]) if isinstance(v, dict) and "content" in v else str(v)
+            for v in body.values()
+        )
+    else:
+        # 如果 body 不是字典，直接将其转换为字符串
+        body_content = str(body)
+
+    term_counts = [body_content.lower().count(term.lower()) for term in suspicious_terms]
 
     return term_counts
 
@@ -78,6 +125,12 @@ def extract_features(request: Dict[str, Any]) -> np.ndarray:
     header_features = extract_header_features(request["headers"])
     body_features = extract_body_features(request.get("body", ""))
     text_features = extract_text_features(request.get("body", ""))
+    # 创建TF-IDF向量化器
+    url_feature_vector = dict_to_fixed_length_tfidf_vector({"url": request["url"]})
+    body_feature_vector = dict_to_fixed_length_tfidf_vector({"body": request.get("body", "")})
+    # 添加各个子部分的TF-IDF特征
+    method_feature_vector = dict_to_fixed_length_tfidf_vector({"method": request["method"]})
+    header_feature_vector = dict_to_fixed_length_tfidf_vector({"headers": request["headers"]})
     if request.get("body", "") is None:
         length_of_body = 0
     else:
@@ -89,7 +142,13 @@ def extract_features(request: Dict[str, Any]) -> np.ndarray:
         len(request["headers"]),  # 头部长度
         length_of_body  # 主体长度
     ]
-    features = url_features + [method_feature] + header_features + body_features + text_features+lengths
+    # print(url_feature_vector[0].tolist())
+    # print(body_feature_vector[0].tolist())
+    # print(method_feature[0].tolist())
+    # print(header_feature[0].tolist())
+    features = url_features + [method_feature] + header_features + body_features + text_features+lengths\
+                + url_feature_vector[0].tolist() + body_feature_vector[0].tolist() + method_feature_vector[0].tolist() + header_feature_vector[0].tolist()
+    # print(features)
     return np.array(features)
 
 def prowler_feature_extract(request: Dict[str, Any]) -> np.ndarray:
@@ -127,11 +186,20 @@ if __name__ == "__main__":
         "Body Length", "Body SQL Keyword Count", "Special Char Count",
         "Term Count (SELECT)", "Term Count (DROP)", "Term Count (INSERT)", 
         "Term Count (DELETE)", "Term Count (UNION)", "URL Length", "Method Length",
-        "Header Length", "Body Length"
+        "Header Length", "Body Length",
     ]
 
     # 打印特征向量及其目的
     print("固定长度特征向量:", feature_vector)
     for desc, value in zip(feature_descriptions, feature_vector):
         print(f"{desc}: {value}")
+    # "URL TF-IDF", "Body TF-IDF", "Method TF-IDF" "Header TF-IDF" have length of 10
+    for i in range(10):
+        print(f"URL TF-IDF {i}: {feature_vector[30 + i]}")
+    for i in range(10):
+        print(f"Body TF-IDF {i}: {feature_vector[40 + i]}")
+    for i in range(10):
+        print(f"Method TF-IDF {i}: {feature_vector[50 + i]}")
+    for i in range(10):
+        print(f"Header TF-IDF {i}: {feature_vector[60 + i]}")
     print("特征向量长度:", len(feature_vector))

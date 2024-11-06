@@ -46,6 +46,14 @@ logger = LoggerSingleton().get_logger()
 # logger.setLevel("WARNING")
 TAG = "prowler_rl_based_mutant.py: "
 
+# RL PARAMETERS
+SELF_MAX_STEPS = 800
+MAX_TIME_STEPS = 50000
+#熵损失
+ENTROPY_LOSS = 0.01
+LEARNING_RATE = 0.0001 
+
+
 def handle_json_response(response):
     try:
         data = json.loads(response.read().decode('utf-8'))
@@ -85,6 +93,7 @@ def handle_xml_response(response):
     except ET.ParseError:
         logger.warning(TAG + "==> 响应数据不是有效的 XML 格式")
         return "解析响应失败"
+
 
 def handle_gzip_response(response):
     try:
@@ -129,22 +138,32 @@ def parse_response(response):
 
     return data
 
-def send_requests(prep_request, timeout=5):
+def send_requests(prep_request, timeout=0.5):
     url = urlparse(prep_request.get('url'))
     logger.debug(TAG + "==>url: " + str(prep_request.get('url')))
     # 创建 HTTP 连接并设置超时
     conn = http.client.HTTPConnection(url.netloc, timeout=timeout)
     
     try:
+        
         # 获取 URL 和 body 并确保 body 为字节类型
         body = prep_request.get('body')
-        if isinstance(body, str):
+        # 确保 body 为字节类型
+        if isinstance(body, dict):
+            body = str(body).encode('utf-8')  # 将字典转换为字符串并编码为字节
+        elif isinstance(body, str):
             body = body.encode('utf-8')  # 将字符串编码为字节
-        # 发出请求
-        conn.request(prep_request.get('method'), url.path, body=prep_request.get('body'), headers=prep_request.get('headers'))
+        conn.request(prep_request.get('method'), url.path,body=body, headers=prep_request.get('headers'))
     except Exception as e:
         logger.error(TAG + "==>error in sending request: " + str(e))
+        logger.warning(TAG + "==>payload: " + str(prep_request))
+        logger.warning(TAG + "==>type of payload: " + str(type(prep_request)))
+        logger.warning(TAG + "==>url: " + str(url))
+        logger.warning(TAG + "==>body: " + str(body))
+        logger.warning(TAG + "==>type of body: " + str(type(body)))
+        logger.warning(TAG + "==>headers: " + str(prep_request.get('headers')))
         response = requests.Response()
+        # raise e
         return response
     
     try:
@@ -302,9 +321,10 @@ class WAFBypassEnv(gym.Env):
         self.payloads = [self.payload]
         self.num_methods = len(enabled_methods)
         self.payload_dim = 50
-        self.max_steps = 500  # 可以根据需要调整
+        self.max_steps = SELF_MAX_STEPS
         self.current_step = 0
-        
+        # 跟踪历史payload以评估多样性
+        self.previous_payloads = set()  # 用于存储历史payload的哈希值
         self.total_actions = self.num_methods + 3  # 变异方法 + 恢复 + 跳过 + 特定变异
         self.ACTION_RESTORE = self.num_methods
         self.ACTION_SKIP = self.num_methods + 1
@@ -462,8 +482,7 @@ class WAFBypassEnv(gym.Env):
         reward = -50  # 默认的负奖励
         success = False
 
-        # 跟踪历史payload以评估多样性
-        previous_payloads = set()  # 用于存储历史payload的哈希值
+
         # 将 CaseInsensitiveDict 转换为普通字典
         def make_hashable(d):
             """将字典转换为可哈希的结构，处理嵌套字典"""
@@ -500,9 +519,9 @@ class WAFBypassEnv(gym.Env):
                 logger.warning("WAF bypassed!")
 
                 # 检查payload多样性
-                if current_payload_hash not in previous_payloads:
+                if current_payload_hash not in self.previous_payloads:
                     reward += 20  # 给予额外奖励以鼓励多样性
-                    previous_payloads.add(current_payload_hash)
+                    self.previous_payloads.add(current_payload_hash)
                     logger.info(TAG + "==>payload diversity rewarded")
                 break
             else:
@@ -510,15 +529,17 @@ class WAFBypassEnv(gym.Env):
                 if status_code == 403:
                     reward -= 10  # 对403状态码的负奖励
                 if status_code == 0: # 超时
-                    reward -= 20
+                    reward -= 50
             logger.info(TAG + "==> Status code: " + str(status_code) + " Reward: " + str(reward))
         return reward, success
     def get_payload(self):
         return self.payload
     def get_current_used_methods(self):
         return self.action_history
+LOAD_NUM =0
 def initialize_model(payload, enabled_mutant_methods, model_path="ppo_waf_bypass"):
     """初始化模型，如果已存在则加载模型，否则创建新模型"""
+    global  LOAD_NUM
     try:
         if not os.path.exists(model_path):
             # 尝试加载最新的中间模型
@@ -526,6 +547,9 @@ def initialize_model(payload, enabled_mutant_methods, model_path="ppo_waf_bypass
                 model_name = f"ppo_waf_bypass_payload_{i}.zip"
                 if os.path.exists(model_name):
                     model_path = model_name
+
+                    LOAD_NUM = i
+            model = PPO.load(model_path, device="cuda")
         else:
             model = PPO.load(model_path, device="cuda")
         # 检查模型的环境状态空间是否与当前环境匹配
@@ -547,12 +571,15 @@ def initialize_model(payload, enabled_mutant_methods, model_path="ppo_waf_bypass
 
 def create_new_model(env):
     """创建新的 PPO 模型"""
-    return PPO("MlpPolicy", env, verbose=1, device="cuda")
-def train_model(model, payloads, enabled_mutant_methods, total_timesteps=50000):
+    return PPO("MlpPolicy", env,learning_rate=LEARNING_RATE,ent_coef=ENTROPY_LOSS, verbose=1, device="cuda")
+def train_model(model, payloads, enabled_mutant_methods, total_timesteps=MAX_TIME_STEPS):
     """遍历 payloads 并逐个训练模型"""
+    global LOAD_NUM
     for i, payload_for_rl in enumerate(payloads):
+        if i < LOAD_NUM:
+            logger.warning(f"Skip payload {i + 1}/{len(payloads)}")
+            continue
         env = WAFBypassEnv(enabled_mutant_methods, payload_for_rl)
-
         # 更新模型的环境
         model.set_env(env)
         logger.warning(f"Training on payload {i + 1}/{len(payloads)}")
@@ -737,7 +764,7 @@ if __name__ == "__main__":
 
     model = initialize_model(payloads_processed[0], enabled_mutant_methods)
     # 训练模型
-    train_model(model, payloads_processed, enabled_mutant_methods, total_timesteps=50000)
+    train_model(model, payloads_processed, enabled_mutant_methods, total_timesteps=MAX_TIME_STEPS)
 
     # 测试模型
     # 对所有的payload进行测试
@@ -746,3 +773,4 @@ if __name__ == "__main__":
         model = PPO.load("ppo_waf_bypass", device="cuda")
         logger.warning(f"Testing on payload {i + 1}/{len(payloads_processed)}")
         test_model(model, test_env)
+

@@ -78,7 +78,7 @@ class LoggerSingleton:
         # 将handler添加到logger
 
 
-        self.logger.addHandler(console_handler)
+        # self.logger.addHandler(console_handler)
         self.logger.addHandler(file_handler)
 
     def get_logger(self):
@@ -90,5 +90,5 @@ class LoggerSingleton:
                 # 创建一个新的根记录器并设置自定义配置
                 root_logger = logging.getLogger()
                 root_logger.setLevel(logging.NOTSET)  # 设置根记录器的级别为最低级别
-
+        # 移除控制台输出
         return self.logger

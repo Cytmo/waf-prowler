@@ -5,6 +5,7 @@ import requests
 # from utils.prowler_mutant import prowler_begin_to_mutant_payloads
 from utils.prowler_mutant import prowler_begin_to_mutant_payloads
 from utils.prowler_rl import prowler_begin_to_mutant_payload_with_rl
+from utils.prowler_rl import send_requests as send_requests_for_rl
 from utils.logUtils import LoggerSingleton
 from utils.recordResUtils import JSONLogger
 import http.client
@@ -101,48 +102,6 @@ def parse_response(response):
     logger.info(TAG + "==>parsed data: " + str(data)+ "content_type is: " + content_type)
 
     return data
-
-def send_requests_for_rl(prep_request, timeout=HTTP_CONNECTION_TIMEOUT):
-    url = urlparse(prep_request.get('url'))
-    logger.debug(TAG + "==>url: " + str(prep_request.get('url')))
-    # 创建 HTTP 连接并设置超时
-    conn = http.client.HTTPConnection(url.netloc, timeout=timeout)
-    
-    try:
-        # 获取 URL 和 body 并确保 body 为字节类型
-        body = prep_request.get('body')
-        if isinstance(body, str):
-            body = body.encode('utf-8')  # 将字符串编码为字节
-        # 发出请求
-        conn.request(prep_request.get('method'), url.path, body=prep_request.get('body'), headers=prep_request.get('headers'))
-    except Exception as e:
-        logger.error(TAG + "==>error in sending request: " + str(e))
-        response = requests.Response()
-        return response
-    
-    try:
-        # 获取响应，超时将导致异常
-        response = conn.getresponse()
-    except Exception as e:
-        logger.error(TAG + "==>error in receiving response: " + str(e))
-        response = requests.Response()
-        return response
-
-    # 记录响应状态
-    temp_log = f"Response status: {response.status} {response.reason} {response.msg}"
-    logger.info(TAG + temp_log)
-    
-    # 读取响应体内容
-    response_body = parse_response(response)
-    logger.info(TAG + str(response_body))
-    
-    # 将响应内容赋值给 response
-    response.text = response_body
-    response.status_code = response.status
-
-    # 关闭连接
-    conn.close()
-    return response
 
 def send_requests(prep_request, timeout=HTTP_CONNECTION_TIMEOUT):
     url = urlparse(prep_request.url)
