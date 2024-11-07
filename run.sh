@@ -22,7 +22,7 @@ if [ "$profiling_choice" -eq 1 ]; then
     profile_command="python -m cProfile -o profile.stats"
     snakeviz_command="&& python -m snakeviz profile.stats --server"
 else
-    profile_command=""
+    profile_command="python3"
     snakeviz_command=""
 fi
 
@@ -43,6 +43,7 @@ case $execution_choice in
     4)
         echo "Running waf-prowler without memory and with reinforcement learning..."
         command="$profile_command main.py -m --disable-memory --rl $snakeviz_command"
+        echo $command
         ;;
     5)
         echo "Cleaning up..."

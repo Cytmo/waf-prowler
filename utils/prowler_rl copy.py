@@ -306,7 +306,6 @@ def send_request(url, method, headers, data, files):
     except requests.RequestException as e:
         logger.warning(TAG + "==> 发送请求时出错: " + str(e))
         return 0
-
 class WAFBypassEnv(gym.Env):
     def __init__(self, enabled_methods, payload_for_rl):
         super(WAFBypassEnv, self).__init__()
@@ -317,8 +316,8 @@ class WAFBypassEnv(gym.Env):
             raise ValueError("Payload must contain 'headers', 'url', and 'method' fields.")
         self.payloads = [self.payload]
         self.num_methods = len(enabled_methods)
-        self.payload_dim = 50  # 如果使用其他特征提取方法，需要调整此值
-        self.max_steps = 100  # 请根据实际情况设置
+        self.payload_dim = 50
+        self.max_steps = SELF_MAX_STEPS
         self.current_step = 0
         self.previous_payloads = set()
         self.total_actions = self.num_methods + 3
@@ -330,28 +329,12 @@ class WAFBypassEnv(gym.Env):
         # 计算总的动作数量，包括特殊动作
         self.total_methods = self.num_methods + 3
 
-        # 初始化动作执行次数
-        self.action_execution_counts = np.zeros(self.total_methods, dtype=np.float32)
-        # 初始化动作成功和失败计数
-        self.action_success_counts = np.zeros(self.total_methods, dtype=np.float32)
-        self.action_failure_counts = np.zeros(self.total_methods, dtype=np.float32)
-        # 初始化过去 N 步的动作序列
-        self.N = 5  # 可以根据需要调整
-        self.past_actions = np.full(self.N, -1, dtype=np.int32)
-
         # 计算观察空间的长度
-        # failed_methods (total_methods)
-        # action_execution_counts (total_methods)
-        # action_success_rate (total_methods)
-        # 2 action flags
-        # time_step (1)
-        # past_actions_one_hot (N * total_actions)
-        # payload_dim
-        self.observation_length = self.total_methods * 3 + 2 + 1 + self.N * self.total_actions + self.payload_dim
+        self.observation_length = 2 * self.total_methods + 2 + self.payload_dim
 
-        self.action_space = gym.spaces.Discrete(self.total_actions)
-        self.observation_space = gym.spaces.Box(
-            low=-np.inf, high=np.inf,
+        self.action_space = spaces.Discrete(self.total_actions)
+        self.observation_space = spaces.Box(
+            low=0, high=1,
             shape=(self.observation_length,),
             dtype=np.float32
         )
@@ -371,12 +354,9 @@ class WAFBypassEnv(gym.Env):
     def _reset_environment(self):
         self.current_step = 0
         self.success = False
-        # 重置失败的方法和动作历史
+        # 更新 failed_methods 和 action_history 的大小
         self.failed_methods = np.zeros(self.total_methods, dtype=np.float32)
-        self.action_execution_counts = np.zeros(self.total_methods, dtype=np.float32)
-        self.action_success_counts = np.zeros(self.total_methods, dtype=np.float32)
-        self.action_failure_counts = np.zeros(self.total_methods, dtype=np.float32)
-        self.past_actions = np.full(self.N, -1, dtype=np.int32)
+        self.action_history = np.zeros(self.total_methods, dtype=np.float32)
         self.last_action = -1
         self.payload = copy.deepcopy(self.initial_payload)
         self.state = self._get_state()
@@ -399,45 +379,12 @@ class WAFBypassEnv(gym.Env):
 
     def _get_state(self):
         payload_features = self.extract_features(self.payload)
-
-        # 应用时间衰减到动作执行次数
-        decay_factor = 0.9  # 可以根据需要调整
-        decayed_action_counts = self.action_execution_counts * (decay_factor ** self.current_step)
-
-        # 计算动作成功率
-        total_counts = self.action_success_counts + self.action_failure_counts + 1e-5  # 防止除以零
-        action_success_rate = self.action_success_counts / total_counts
-
         action_flags = np.array([
             int(self.last_action == self.ACTION_RESTORE),
             int(self.last_action == self.ACTION_SKIP)
         ], dtype=np.float32)
-
-        # 编码过去 N 步的动作序列
-        past_actions_one_hot = np.zeros((self.N, self.total_actions), dtype=np.float32)
-        for i, act in enumerate(self.past_actions):
-            if act >= 0 and act < self.total_actions:
-                past_actions_one_hot[i, act] = 1.0
-        past_actions_flat = past_actions_one_hot.flatten()
-
-        # 添加时间步信息
-        time_step = np.array([self.current_step / self.max_steps], dtype=np.float32)
-
-        method_status = np.concatenate([
-            self.failed_methods,
-            decayed_action_counts,
-            action_success_rate
-        ])
-
-        state = np.concatenate([
-            method_status,
-            action_flags,
-            time_step,
-            past_actions_flat,
-            payload_features
-        ]).astype(np.float32)
-
-        return state
+        method_status = np.concatenate([self.failed_methods, self.action_history])
+        return np.concatenate([method_status, action_flags, payload_features]).astype(np.float32)
 
     def step(self, action):
         self.current_step += 1
@@ -459,13 +406,9 @@ class WAFBypassEnv(gym.Env):
         return self.state, reward, done, False, {}
 
     def _record_action(self, action):
-        # 记录动作执行次数
         if action < self.total_methods:
-            self.action_execution_counts[action] += 1.0
+            self.action_history[action] = 1.0
         self.last_action = action
-        # 更新过去 N 步的动作序列
-        self.past_actions = np.roll(self.past_actions, -1)
-        self.past_actions[-1] = action
 
     def _restore_payload(self):
         logger.warning("Restoring original payload.")
@@ -522,7 +465,7 @@ class WAFBypassEnv(gym.Env):
         logger.info(f"{TAG}==>mutated payload: {self.payload}")
 
     def _calculate_reward(self):
-        reward = 0  # 减少负奖励的幅度
+        reward = -1  # 默认的轻微负奖励
         success = False
 
         def make_hashable(d):
@@ -538,7 +481,7 @@ class WAFBypassEnv(gym.Env):
         for payload in self.payloads:
             if len(str(payload)) >= 5000:
                 logger.info(TAG + "==>payload too long, skip")
-                reward -= 1  # 减少负奖励
+                reward = -5
                 success = False
                 break
 
@@ -549,7 +492,7 @@ class WAFBypassEnv(gym.Env):
                 status_code = 0
 
             if status_code == 200:
-                reward += 10  # 成功奖励
+                reward = 10  # 成功奖励
                 success = True
                 logger.warning("WAF bypassed!")
 
@@ -557,20 +500,14 @@ class WAFBypassEnv(gym.Env):
                     reward += 2  # 给予额外奖励以鼓励多样性
                     self.previous_payloads.add(current_payload_hash)
                     logger.info(TAG + "==>payload diversity rewarded")
-                # 更新动作成功计数
-                if self.last_action >= 0 and self.last_action < self.total_methods:
-                    self.action_success_counts[self.last_action] += 1
                 break
             else:
                 if status_code == 403:
-                    reward -= 0.5  # 减少负奖励
+                    reward -= 2
                 elif status_code == 0:  # 超时
-                    reward -= 1
+                    reward -= 3
                 else:
-                    reward -= 0.1
-                # 更新动作失败计数
-                if self.last_action >= 0 and self.last_action < self.total_methods:
-                    self.action_failure_counts[self.last_action] += 1
+                    reward -= 1
             logger.info(TAG + f"==> Status code: {status_code}, Reward: {reward}")
         return reward, success
 
@@ -578,7 +515,7 @@ class WAFBypassEnv(gym.Env):
         return self.payload
 
     def get_current_used_methods(self):
-        return self.action_execution_counts
+        return self.action_history
 
 LOAD_NUM =0
 def initialize_model(payload, enabled_mutant_methods, model_path="ppo_waf_bypass"):
