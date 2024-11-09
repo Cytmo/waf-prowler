@@ -829,7 +829,7 @@ def mutant_methods_change_charset(headers, url, method, data, files):
     ]
     weights = [0.58] + [0.07] * 6
     content_type=random.choices(content_type_variations,weights=weights)[0]
-
+    content_type = content_type_variations[0]
     # content_type=random.choice(content_type_variations)
     # input()
     # 修改请求头中的 Content-Type
@@ -1464,6 +1464,8 @@ def mutant_methods_sql_comment_obfuscation(headers, url, method, data, files):
     return mutant_payloads
 
 def mutant_methods_convert_get_to_post(headers, url, method, data, files):
+    # mutant_payloads = []
+    # return mutant_payloads
     """ 将GET请求转换为POST请求 """
     logger.info(TAG + "==>mutant_methods_convert_get_to_post")
     logger.debug(TAG + "==>headers: " + str(headers))
@@ -1567,19 +1569,19 @@ mutant_methods_config_for_rl = {
     "mutant_methods_modify_content_type": (mutant_methods_modify_content_type, True),
     "mutant_methods_fake_content_type": (mutant_methods_fake_content_type, True),
     "mutant_methods_case_and_comment_obfuscation": (mutant_methods_case_and_comment_obfuscation, False),
-    "mutant_methods_url_encoding": (mutant_methods_url_encoding, True),
+    "mutant_methods_url_encoding": (mutant_methods_url_encoding, False),
     "mutant_methods_unicode_normalization": (mutant_methods_unicode_normalization, False),
     "mutant_methods_line_breaks": (mutant_methods_line_breaks, False),
     "mutant_methods_add_padding": (mutant_methods_add_padding, True),
     "mutant_methods_multipart_boundary": (mutant_methods_multipart_boundary, True), # disabled for RL
     "mutant_upload_methods_double_equals": (mutant_upload_methods_double_equals, True),
-    "mutant_methods_delete_content_type_of_data": (mutant_methods_delete_content_type_of_data, True),
+    "mutant_methods_delete_content_type_of_data": (mutant_methods_delete_content_type_of_data, False),
     "mutant_methods_modify_content_type_case": (mutant_methods_modify_content_type_case, True),
-    "mutant_methods_modify_case_of_content_type": (mutant_methods_modify_case_of_content_type, True),
-    "mutant_methods_add_Content_Type_for_get_request": (mutant_methods_add_Content_Type_for_get_request, True),
+    "mutant_methods_modify_case_of_content_type": (mutant_methods_modify_case_of_content_type, False),
+    "mutant_methods_add_Content_Type_for_get_request": (mutant_methods_add_Content_Type_for_get_request, False),
     "mutant_methods_add_harmless_command_for_get_request": (mutant_methods_add_harmless_command_for_get_request, True),
     "mutant_methods_chunked_transfer_encoding": (mutant_methods_chunked_transfer_encoding, False),
-    "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data, True), # disabled for RL
+    "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data, False), # disabled for RL
     "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation, False),
     "mutant_methods_convert_get_to_post": (mutant_methods_convert_get_to_post, False),
 }
