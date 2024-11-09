@@ -4,7 +4,6 @@ import copy
 import random
 import numpy as np
 import requests
-import fasttext
 import itertools
 import re
 import urllib.parse

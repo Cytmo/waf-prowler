@@ -11,6 +11,7 @@ results/
 result/
 # C extensions
 *.so
+*.zip
 
 # Distribution / packaging
 .Python

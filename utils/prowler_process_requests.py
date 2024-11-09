@@ -1,9 +1,11 @@
 import json
 import os
+import time
 import requests
 # from utils.prowler_mutant import prowler_begin_to_mutant_payloads
 from utils.prowler_mutant import prowler_begin_to_mutant_payloads
-from utils.prowler_rl_based_mutant import prowler_begin_to_mutant_payloads as rl_based_mutant
+from utils.prowler_rl import prowler_begin_to_mutant_payload_with_rl
+from utils.prowler_rl import send_requests as send_requests_for_rl
 from utils.logUtils import LoggerSingleton
 from utils.recordResUtils import JSONLogger
 import http.client
@@ -16,10 +18,7 @@ from requests.models import Request, PreparedRequest
 logger = LoggerSingleton().get_logger()
 resLogger = JSONLogger()
 TAG = "prowler_process_requests.py: "
-
-def rl_based_mutant_payloads(headers, url, method, data=None, deep_mutant=False):
-    mutant_payloads = rl_based_mutant(headers, url, method, data, deep_mutant)
-    return mutant_payloads
+HTTP_CONNECTION_TIMEOUT = 3
 
 def handle_json_response(response):
     try:
@@ -104,13 +103,12 @@ def parse_response(response):
 
     return data
 
-
-def send_requests(prep_request):
+def send_requests(prep_request, timeout=HTTP_CONNECTION_TIMEOUT):
     url = urlparse(prep_request.url)
     logger.debug(TAG + "==>url: " + str(prep_request.url))
     # print content of request
     # logger.debug(TAG + "==>prep_request: " + str(prep_request))
-    conn = http.client.HTTPConnection(url.netloc)
+    conn = http.client.HTTPConnection(url.netloc, timeout=timeout)
     try:
         conn.request(prep_request.method, prep_request.url, headers=prep_request.headers, body=prep_request.body)
     except Exception as e:
@@ -175,6 +173,55 @@ def process_requests(headers, url, method, data=None, files=None):
         return None
 
 
+def run_payload_for_rl(payload, host=None, port=None, waf=True):
+    logger.info(TAG + "==>run payload: " + str(payload))
+    url = payload['url']
+    # todo: more sophiscated way to obtain waf payload
+    if waf:
+        url = url.replace("8001", "9001").replace("8002", "9002").replace("8003", "9003")
+    # for not mutanted payload, copy url as original url
+    # for mutanted payload, use 'original_url' to display result
+
+    if 'original_url' not in payload:
+        original_url = url
+    else:
+        original_url = payload['original_url']
+        if waf:
+            original_url = original_url.replace("8001", "9001").replace("8002", "9002").replace("8003", "9003")
+    # processed_req = process_requests(headers, url, method, data=data, files=files)
+    processed_req = {
+        "url": url,
+        "headers": payload.get('headers', None),
+        "method": payload.get('method', None),
+        "body": payload.get('body', None),
+    }
+    # print(payload)
+    # print(processed_req)
+    # exit()
+    response = send_requests_for_rl(processed_req)
+    logger.info(TAG + "==>send payload to " + url)
+    logger.info(TAG + "==>response: " + str(response))
+    # logger.debug(TAG + "==>response: " + str(response.text))
+    if response is not None:
+        logger.debug(TAG + "==>response: " + str(response.text))
+        result = {
+            'url': url,
+            'original_url': original_url,
+            'payload': str(payload),
+            'response_status_code': response.status_code,
+            'response_text': response.text,
+            'success':''
+        }
+    else:
+        result = {
+            'url': url,
+            'original_url': original_url,
+            'payload': str(payload),
+            'response_status_code': "Error",
+            'response_text': "Error",
+            'success':''
+        }
+    return result
 def run_payload(payload, host, port, waf=False):
     logger.info(TAG + "==>run payload: " + str(payload))
     url = payload['url']
@@ -261,12 +308,15 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                     # 获取变异后的 payloads
                     if rl:
                     # mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
-                        mutant_payloads = rl_based_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
+                        mutant_payloads = prowler_begin_to_mutant_payload_with_rl(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body)
                     else:
                         mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
                     # 遍历 mutant_payloads 执行 payload
                     for mutant_payload in mutant_payloads:
-                        result = run_payload(mutant_payload, host, port, waf)
+                        if rl:
+                            result = run_payload_for_rl(mutant_payload, host, port, waf)
+                        else:
+                            result = run_payload(mutant_payload, host, port, waf)
                         formatted_results = json.dumps(result, indent=4, ensure_ascii=False)
                         logger.debug(TAG + "==>results: " + formatted_results)
                         
@@ -287,6 +337,11 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
 
                     # 如果还未成功并且 deep_mutant 为 False，进行深度变异
                     if not success_after_mutant and not deep_mutant:
+                        # 若强化学习失败，使用普通变异
+                        # if rl:
+                        #     rl = False
+                        #     logger.warning(TAG + "==>url: " + result['url'] + " rl failed, use normal mutant")
+                        #     time.sleep(10)
                         if method != 'GET':
                             end_mutant = True
                         else:
@@ -296,6 +351,4 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                     elif not success_after_mutant and deep_mutant:
                         logger.warning(TAG + "==>url: " + result['url'] + " deep mutant failed")
                         end_mutant = True
-
-    
     return results
