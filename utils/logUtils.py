@@ -78,7 +78,7 @@ class LoggerSingleton:
         # 将handler添加到logger
 
 
-        # self.logger.addHandler(console_handler)
+        self.logger.addHandler(console_handler)
         self.logger.addHandler(file_handler)
 
     def get_logger(self):

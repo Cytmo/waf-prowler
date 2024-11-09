@@ -18,7 +18,7 @@ from requests.models import Request, PreparedRequest
 logger = LoggerSingleton().get_logger()
 resLogger = JSONLogger()
 TAG = "prowler_process_requests.py: "
-HTTP_CONNECTION_TIMEOUT = 3
+HTTP_CONNECTION_TIMEOUT = 0.1
 
 def handle_json_response(response):
     try:
@@ -273,11 +273,11 @@ def run_payload(payload, host, port, waf=False):
 
 def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_ENABLED=False,enable_shortcut=True,enable_dd=False,rl=False):
     results = []
-    
+    rl_backup = rl
     for payload in payloads:
         # get the payload data
         result = run_payload(payload, host, port, waf)
-
+        rl = rl_backup
         if result.get('response_status_code') == 200:
             logger.warning(TAG + "==>url: " + result['url'] + " success")
             result['success'] = True
@@ -302,14 +302,20 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                 success_after_mutant = False 
                 deep_mutant = False
                 end_mutant = False
-                
+                # if method == 'GET':
+                #     deep_mutant = True
                 # 修改终止条件为 end_mutant == False
                 while not success_after_mutant and not end_mutant:
+
                     # 获取变异后的 payloads
                     if rl:
                     # mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
                         mutant_payloads = prowler_begin_to_mutant_payload_with_rl(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body)
                     else:
+                        mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
+                    if len(mutant_payloads) == 0:
+                        # use normal mutant
+                        rl = False  
                         mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
                     # 遍历 mutant_payloads 执行 payload
                     for mutant_payload in mutant_payloads:
@@ -319,7 +325,6 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                             result = run_payload(mutant_payload, host, port, waf)
                         formatted_results = json.dumps(result, indent=4, ensure_ascii=False)
                         logger.debug(TAG + "==>results: " + formatted_results)
-                        
                         # 检查返回状态码以及结果
                         if result.get('response_status_code') == 200 and resLogger.check_response_text(result['original_url'], result['response_text']):
                             logger.warning(TAG + "==>url: " + result['url'] + " success after mutant")
@@ -334,13 +339,14 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                             result['success'] = False
                             results.append(result)
                             logger.warning(TAG + "==>url: " + result['url'] + " failed after mutant " + " response: " + str(result['response_text']))
-
+                    if not success_after_mutant:
+                                                # 若强化学习失败，使用普通变异
+                        if rl:
+                            rl = False
+                            logger.warning(TAG + "==>url: " + result['url'] + " rl failed, use normal mutant")
                     # 如果还未成功并且 deep_mutant 为 False，进行深度变异
                     if not success_after_mutant and not deep_mutant:
-                        # 若强化学习失败，使用普通变异
-                        # if rl:
-                        #     rl = False
-                        #     logger.warning(TAG + "==>url: " + result['url'] + " rl failed, use normal mutant")
+
                         #     time.sleep(10)
                         if method != 'GET':
                             end_mutant = True

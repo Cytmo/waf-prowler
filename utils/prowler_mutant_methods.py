@@ -1559,9 +1559,9 @@ mutant_methods_config = {
     "mutant_methods_double_decode_obfuscation": (mutant_methods_double_decode_obfuscation, True),
     "mutant_methods_newline_obfuscation": (mutant_methods_newline_obfuscation, True),
     "mutant_methods_tab_obfuscation": (mutant_methods_tab_obfuscation, True),
-    "mutant_methods_garbage_character_obfuscation": (mutant_methods_garbage_character_obfuscation, True),
-    
+    "mutant_methods_garbage_character_obfuscation": (mutant_methods_garbage_character_obfuscation, True),  
 }
+
 # 为变异方法添加开关
 mutant_methods_config_for_rl = {
     "mutant_methods_modify_content_type": (mutant_methods_modify_content_type, True),

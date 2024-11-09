@@ -12,7 +12,8 @@ echo "1. Run waf-prowler with memory..."
 echo "2. Run waf-prowler without memory..."
 echo "3. Run waf-prowler without memory and disable shortcut..."
 echo "4. Run waf-prowler without memory and with reinforcement learning..."
-echo "5. Clean up..."
+echo "5. Run waf-prowler without memory and with reinforcement learning and without shortcut..."
+echo "6. Clean up..."
 echo "6. Exit"
 
 read -p "Enter option [1-6]: " execution_choice
@@ -46,11 +47,15 @@ case $execution_choice in
         echo $command
         ;;
     5)
+        echo "Running waf-prowler without memory and with reinforcement learning and without shortcut..."
+        command="$profile_command main.py -m --disable-memory --rl -ds $snakeviz_command"
+        ;;
+    6)
         echo "Cleaning up..."
         ./clean.sh
         exit 0
         ;;
-    6)
+    7)
         echo "Exiting the program"
         exit 0
         ;;

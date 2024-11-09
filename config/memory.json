@@ -1,1 +1,30 @@
-[]
+[
+    {
+        "successful_mutant_method": "mutant_methods_modify_content_type",
+        "url": "http://localhost:9003/rce_post"
+    },
+    {
+        "successful_mutant_method": "mutant_methods_modify_content_type",
+        "url": "http://localhost:9001/rce_get?cmd=cat%20/etc/passwd"
+    },
+    {
+        "successful_mutant_method": "mutant_methods_modify_content_type",
+        "url": "http://localhost:9001/sqli_get?id=1%20UNION%20SELECT%20null,%20password%20FROM%20users%20WHERE%20id%20=%201%20--"
+    },
+    {
+        "successful_mutant_method": "mutant_methods_modify_content_type",
+        "url": "http://localhost:9003/rce_get?cmd=cat%20/etc/passwd"
+    },
+    {
+        "successful_mutant_method": "mutant_methods_modify_content_type",
+        "url": "http://localhost:9003/sqli_get?id=1%20UNION%20SELECT%20null,%20password%20FROM%20users%20WHERE%20id%20=%201%20--"
+    },
+    {
+        "successful_mutant_method": "mutant_methods_modify_content_type",
+        "url": "http://localhost:9003/sqli_post"
+    },
+    {
+        "successful_mutant_method": "mutant_methods_modify_content_type",
+        "url": "http://localhost:9002/rce_get?cmd=cat%20/etc/passwd"
+    }
+]

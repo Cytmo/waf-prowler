@@ -47,8 +47,8 @@ logger = LoggerSingleton().get_logger()
 TAG = "prowler_rl_based_mutant.py: "
 
 # RL PARAMETERS
-SELF_MAX_STEPS = 800
-MAX_TIME_STEPS = 50000
+SELF_MAX_STEPS = 10
+MAX_TIME_STEPS = 10000
 #熵损失
 ENTROPY_LOSS = 0.01
 LEARNING_RATE = 0.0001 
@@ -138,7 +138,7 @@ def parse_response(response):
 
     return data
 
-def send_requests(prep_request, timeout=0.5):
+def send_requests(prep_request, timeout=0.1):
     url = urlparse(prep_request.get('url'))
     logger.debug(TAG + "==>url: " + str(prep_request.get('url')))
     # 创建 HTTP 连接并设置超时
@@ -317,7 +317,7 @@ class WAFBypassEnv(gym.Env):
             raise ValueError("Payload must contain 'headers', 'url', and 'method' fields.")
         self.payloads = [self.payload]
         self.num_methods = len(enabled_methods)
-        self.payload_dim = 50  # 如果使用其他特征提取方法，需要调整此值
+        self.payload_dim = 70  # 如果使用其他特征提取方法，需要调整此值
         self.max_steps = 100  # 请根据实际情况设置
         self.current_step = 0
         self.previous_payloads = set()
@@ -549,12 +549,12 @@ class WAFBypassEnv(gym.Env):
                 status_code = 0
 
             if status_code == 200:
-                reward += 10  # 成功奖励
+                reward += 5  # 成功奖励
                 success = True
                 logger.warning("WAF bypassed!")
 
                 if current_payload_hash not in self.previous_payloads:
-                    reward += 2  # 给予额外奖励以鼓励多样性
+                    reward += 5  # 给予额外奖励以鼓励多样性
                     self.previous_payloads.add(current_payload_hash)
                     logger.info(TAG + "==>payload diversity rewarded")
                 # 更新动作成功计数
@@ -648,7 +648,7 @@ def test_model(model, env):
     max_steps = 20  # 最大步数上限
 
     while not done and total_steps < max_steps:
-        action, _ = model.predict(obs, deterministic=True)
+        action, _ = model.predict(obs, deterministic=False)
         obs, reward, done, truncated, info = env.step(action)
         
         # 假设正奖励表示生成有效载荷
@@ -720,7 +720,17 @@ def test_model(model, env):
 #     mutant_payloads.append(mutant_payload)
 
 #     return mutant_payloads
-def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=None):
+def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=None, attempts=5, mode="all"):
+    """
+    Parameters:
+        headers: dict, 请求头
+        url: str, 请求URL
+        method: str, 请求方法
+        data: 请求体
+        files: 请求文件
+        attempts: int, 尝试的次数
+        mode: str, 选择 "first" 返回第一个成功的 payload，选择 "all" 尽可能多地返回成功的 payload
+    """
     logger.warning(TAG + "==> Begin mutating payloads with RL")
     mutant_payloads = []
 
@@ -732,49 +742,50 @@ def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=No
         'body': data
     }
 
-    # 创建环境，使用初始的请求数据
-    env = WAFBypassEnv(enabled_mutant_methods, payload_for_rl)
-
     # 加载预训练的模型
     model = PPO.load("ppo_waf_bypass", device="cuda")
 
-    # 重置环境，获取初始观察
-    obs, _ = env.reset()
-    done = False
-    total_reward = 0
-    total_steps = 0
-    # 使用模型进行推理，直到成功绕过 WAF 或达到最大步骤数
-    while not done:
-        # 使用模型预测下一个动作
-        action, _states = model.predict(obs, deterministic=True)
-
-        # 执行动作，获取新的状态和奖励
-        obs, reward, done, truncated, info = env.step(action)
-        total_reward += reward
-        total_steps += 1
-        # 仅保留奖励为 100 的 payload
-        if reward > 0:
-            currently_used_methods = env.get_current_used_methods()
-            payload = env.get_payload()
-            # get the name of the method
-            used_methods = [enabled_mutant_methods[i][0] for i in range(len(currently_used_methods)) if currently_used_methods[i] == 1]
-            # append currently used methods to payload
-            payload['currently_used_methods'] = used_methods
-            mutant_payloads.append(copy.deepcopy(payload))
-            logger.info("Added payload with reward 100 to mutant_payloads")
-            break
-        if total_steps >= 20:
-            break
+    for attempt in range(attempts):
+        # 创建环境并重置，获取初始观察
+        env = WAFBypassEnv(enabled_mutant_methods, payload_for_rl)
+        obs, _ = env.reset()
         
-        logger.debug(f"Action: {action}, Reward: {reward}")
-
-    logger.info(f"Total Reward: {total_reward}")
-    logger.info(TAG + "==> RL suggested mutant methods: " + str(env.action_history))
-    logger.info(TAG + "==> RL suggested state: " + str(env.state))
-    logger.info(TAG + "==> RL failed methods: " + str(env.failed_methods))
-
+        done = False
+        total_reward = 0
+        total_steps = 0
+        
+        # 使用模型进行推理，直到成功绕过 WAF 或达到最大步骤数
+        while not done:
+            # 使用模型预测下一个动作
+            action, _states = model.predict(obs, deterministic=False)
+            
+            # 执行动作，获取新的状态和奖励
+            obs, reward, done, truncated, info = env.step(action)
+            total_reward += reward
+            total_steps += 1
+            
+            # 仅保留奖励为 100 的 payload
+            if reward > 0:
+                payload = env.get_payload()
+                mutant_payloads.append(copy.deepcopy(payload))
+                logger.info("Added payload with reward 100 to mutant_payloads")
+                
+                # 在 "first" 模式下，找到一个成功的 payload 就直接返回
+                if mode == "first":
+                    return mutant_payloads
+                # 在 "all" 模式下，找到多个成功的 payload 后继续尝试
+                break
+            
+            if total_steps >= 5:
+                break
+            
+            logger.debug(f"Attempt {attempt + 1}, Action: {action}, Reward: {reward}")
+        
+        logger.info(f"Attempt {attempt + 1}, Total Reward: {total_reward}")
+    
     # 返回奖励为 100 的 payload 列表
     return mutant_payloads
+
 
 if __name__ == "__main__":
     # 添加参数清空模型，重新训练
@@ -792,8 +803,8 @@ if __name__ == "__main__":
         logger.setLevel("WARNING")
 
     # 加载并解析 payloads
-    payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload("test/test_payloads")
-    # payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload("config/payload/json")
+    # payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload("test/test_payloads")
+    payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload("config/payload/json")
 
 
     payloads_processed = []
