@@ -41,12 +41,12 @@ if args.wsl == True:
     # windows_host_ip = os.popen("cat /etc/resolv.conf | grep nameserver").read().split()[1]
     # args.host = windows_host_ip.strip()
     logger.info(TAG+"==>windows host ip: "+args.host)
-if args.disable_memory == True:
-    logger.info(TAG+"==>Disable memory")
-    if os.path.exists("config/memory.json"):
-        os.remove("config/memory.json")
-    else:
-        logger.info(TAG+"==>Memory file does not exist")
+# if args.disable_memory == True:
+#     logger.info(TAG+"==>Disable memory")
+#     if os.path.exists("config/memory.json"):
+#         os.remove("config/memory.json")
+#     else:
+#         logger.info(TAG+"==>Memory file does not exist")
 # if test
 if args.test == True:
     args.raw = "test/test_payloads"
@@ -140,26 +140,31 @@ def main():
     total_success = sum(attempts['success'] for attempts in url_attempts.values())
     success_rate = total_success / total_attempts if total_attempts > 0 else 0
     logger.info(TAG + "==>Total attempts(initial attempt not included): " + str(total_attempts) + " Total success: " + str(total_success) + " Success rate: " + str(success_rate))
-    memories = []
+    memories = {}
     for result in results:
-        if result['success'] ==True:
+        if result['success'] == True:
             # 使用正则表达式提取mutant_method的值
             pattern = r"'mutant_method':\s*'([^']+)'"
             match = re.search(pattern, result['payload'])
 
             if match:
                 mutant_method = match.group(1)
-                memory = {
-                    'url': result['original_url'],
-                    'successful_mutant_method': mutant_method,
-                }
-                memories.append(memory)
+                url = result['original_url']
+
+                # 如果该url不存在，创建一个新的列表
+                if url not in memories:
+                    memories[url] = []
+                
+                # 添加mutant_method到对应url的列表中，确保不重复
+                if mutant_method not in memories[url]:
+                    memories[url].append(mutant_method)
+
     # 读取或初始化内存文件
     memory_file_path = "config/memory.json"
     try:
         if not os.path.exists(memory_file_path):
             os.makedirs(os.path.dirname(memory_file_path), exist_ok=True)
-            old_memory = []
+            old_memory = {}
             with open(memory_file_path, "w") as f:
                 json.dump(old_memory, f, indent=4)
         else:
@@ -167,35 +172,21 @@ def main():
                 old_memory = json.load(f)
     except json.decoder.JSONDecodeError:
         logger.error(f"{TAG} ==> 'memory.json' is empty or corrupted")
-        old_memory = []
+        old_memory = {}
 
-    # 去重处理
-    # 使用集合来避免重复的条目
-    unique_memories = {json.dumps(mem, sort_keys=True) for mem in memories}
-    memories = [json.loads(mem) for mem in unique_memories]
-
-    # 将旧的内存条目映射到一个以 URL 和 successful_mutant_method 为键的字典中
-    old_memory_dict = {(mem['url'], mem['successful_mutant_method']): mem for mem in old_memory}
-
-    # 比较并更新内存条目
-    new_memory = []
-    for memory in memories:
-        key = (memory['url'], memory['successful_mutant_method'])
-        if key not in old_memory_dict:
-            new_memory.append(memory)
+    # 更新 old_memory 中的内容
+    for url, mutant_methods in memories.items():
+        if url not in old_memory:
+            old_memory[url] = mutant_methods
         else:
-            # 如果有相同的URL和successful_mutant_method，比较其他属性是否需要更新
-            old_mem = old_memory_dict[key]
-            if any(memory[k] != old_mem[k] for k in memory if k not in ['url', 'successful_mutant_method']):
-                old_memory.remove(old_mem)
-                new_memory.append(memory)
+            # 将新方法添加到旧方法列表中，并去重
+            old_memory[url].extend(mutant_methods)
+            old_memory[url] = list(set(old_memory[url]))
 
-    # 更新memory.json中的内容
-    if new_memory:
-        updated_memory = old_memory + new_memory
-        with open(memory_file_path, "w") as f:
-            json.dump(updated_memory, f, indent=4)
-        logger.info(f"{TAG} ==> Updated 'memory.json' with new entries.")
+    # 将更新后的内容写回 memory.json
+    with open(memory_file_path, "w") as f:
+        json.dump(old_memory, f, indent=4)
+    logger.info(f"{TAG} ==> Updated 'memory.json' with new entries.")
 
 logger.info(TAG + "************************ start *****************************")
 T1 = time.perf_counter()  # 计时

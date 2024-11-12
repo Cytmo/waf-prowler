@@ -76,48 +76,36 @@ def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None,memor
     logger.info(TAG + "==>begin to mutant payloads")
     url_backup = copy.deepcopy(url)
     mutant_payloads = []
+  # 检查memory.json是否存在且不使用深度变异
     if os.path.exists("config/memory.json") and not deep_mutant:
         with open("config/memory.json", "r") as f:
             try:
                 memories = json.load(f)
             except json.decoder.JSONDecodeError:
-                memories = []
-        mem_dict = {}
-        for mem in memories:
-            mem_dict[mem['url']] = mem['successful_mutant_method']
+                memories = {}
+
+        # `memories` 现在是字典结构，每个url对应一个successful_mutant_method的列表
         __url = url.replace('8001', '9001').replace('8002', '9002').replace('8003', '9003')
-        if __url in mem_dict:
-            if mem_dict[__url] in mutant_methods_config:
-                mutant_method, flag = mutant_methods_config[mem_dict[__url]]
+        
+        if __url in memories:
+            for mutant_method_name in memories[__url]:
+                if mutant_method_name in mutant_methods_config:
+                    # 从配置中获取对应的mutant_method函数和标志
+                    mutant_method, flag = mutant_methods_config[mutant_method_name]
 
-                # 调用对应的变异方法
-                sub_mutant_payloads = mutant_method(headers, url, method, data, files)
-                logger.info(TAG + "==>found url in memory, use method: " + mem_dict[__url])
-                # keep original url for result
-                mutant_payloads.extend(sub_mutant_payloads)
-                for payload in mutant_payloads:
-                    payload['original_url'] = url
-
-                return mutant_payloads
-    # if rl:
-    #     # 使用强化学习进行策略选择
-    #     logger.info(TAG + "==>use RL to select mutant method")
-    #     action = choose_strategy({
-    #         'headers': headers,
-    #         'url': url,
-    #         'method': method,
-    #         'data': data,
-    #         'files': files
-    #     }, mutant_methods)
-    #     # 调用对应的变异方法
-    #     sub_mutant_payloads = mutant_methods[action](headers, url, method, data, files)
-    #     logger.info(TAG + "==>found url in memory, use method: " + mem_dict[__url])
-    #     # keep original url for result
-    #     mutant_payloads.extend(sub_mutant_payloads)
-    #     for payload in mutant_payloads:
-    #         payload['original_url'] = url
-    #     logger.info(TAG + "==>RL selected method: " + str(mutant_methods[action]))
-    #     return mutant_payloads
+                    # 调用对应的变异方法生成payload
+                    sub_mutant_payloads = mutant_method(headers, url, method, data, files)
+                    logger.info(f"{TAG} ==> Found url in memory, using method: {mutant_method_name}")
+                    
+                    # 将生成的payload添加到mutant_payloads中，保留原始url
+                    for payload in sub_mutant_payloads:
+                        payload['original_url'] = url
+                        payload['mutant_method'] = mutant_method_name
+                    mutant_payloads.extend(sub_mutant_payloads)
+                
+                else:
+                    logger.warning(f"{TAG} ==> Mutant method {mutant_method_name} not found in configuration")
+        return mutant_payloads
     else :
         #打印当前路径
         logger.info(os.getcwd())

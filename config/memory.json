@@ -1,86 +1,99 @@
-[
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type_case",
-        "url": "http://localhost:9001/rce_post"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type",
-        "url": "http://localhost:9003/rce_get?cmd=cat%20/etc/passwd"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type_case",
-        "url": "http://localhost:9002/sqli_post"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type_case",
-        "url": "http://localhost:9001/sqli_get?id=1%20UNION%20SELECT%20null,%20password%20FROM%20users%20WHERE%20id%20=%201%20--"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type",
-        "url": "http://localhost:9001/upload"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type_case",
-        "url": "http://localhost:9001/sqli_json"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type_case",
-        "url": "http://localhost:9002/rce_json"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type",
-        "url": "http://localhost:9003/upload"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type_case",
-        "url": "http://localhost:9001/rce_get?cmd=cat%20/etc/passwd"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type_case",
-        "url": "http://localhost:9001/sqli_post"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type",
-        "url": "http://localhost:9003/sqli_post"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type_case",
-        "url": "http://localhost:9002/rce_post"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type_case",
-        "url": "http://localhost:9003/rce_json"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type",
-        "url": "http://localhost:9003/rce_post"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type_case",
-        "url": "http://localhost:9003/sqli_json"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type",
-        "url": "http://localhost:9002/upload"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type",
-        "url": "http://localhost:9003/sqli_get?id=1%20UNION%20SELECT%20null,%20password%20FROM%20users%20WHERE%20id%20=%201%20--"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type_case",
-        "url": "http://localhost:9001/rce_json"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type_case",
-        "url": "http://localhost:9002/sqli_json"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type_case",
-        "url": "http://localhost:9002/sqli_get?id=1%20UNION%20SELECT%20null,%20password%20FROM%20users%20WHERE%20id%20=%201%20--"
-    },
-    {
-        "successful_mutant_method": "mutant_methods_modify_content_type_case",
-        "url": "http://localhost:9002/rce_get?cmd=cat%20/etc/passwd"
-    }
-]
+{
+    "http://localhost:9001/upload": [
+        "mutant_methods_modify_content_type",
+        "mutant_methods_change_extensions",
+        "mutant_upload_methods_double_equals",
+        "mutant_methods_multipart_boundary"
+    ],
+    "http://localhost:9001/rce_post": [
+        "mutant_methods_modify_content_type",
+        "mutant_methods_modify_content_type_case"
+    ],
+    "http://localhost:9001/rce_json": [
+        "mutant_methods_fake_content_type",
+        "mutant_methods_change_charset",
+        "mutant_methods_modify_content_type_case"
+    ],
+    "http://localhost:9001/rce_get?cmd=cat%20/etc/passwd": [
+        "mutant_methods_modify_content_type",
+        "mutant_methods_multipart_form_data",
+        "mutant_methods_modify_content_type_case"
+    ],
+    "http://localhost:9001/sqli_post": [
+        "mutant_methods_modify_content_type",
+        "mutant_methods_modify_content_type_case"
+    ],
+    "http://localhost:9001/sqli_json": [
+        "mutant_methods_fake_content_type",
+        "mutant_methods_change_charset",
+        "mutant_methods_modify_content_type_case"
+    ],
+    "http://localhost:9001/sqli_get?id=1%20UNION%20SELECT%20null,%20password%20FROM%20users%20WHERE%20id%20=%201%20--": [
+        "mutant_methods_modify_content_type",
+        "mutant_methods_multipart_form_data",
+        "mutant_methods_modify_content_type_case"
+    ],
+    "http://localhost:9003/upload": [
+        "mutant_methods_modify_content_type",
+        "mutant_methods_change_extensions",
+        "mutant_methods_multipart_boundary"
+    ],
+    "http://localhost:9003/rce_post": [
+        "mutant_methods_modify_content_type"
+    ],
+    "http://localhost:9003/rce_json": [
+        "mutant_methods_fake_content_type",
+        "mutant_methods_add_padding",
+        "mutant_methods_change_charset",
+        "mutant_methods_modify_content_type_case"
+    ],
+    "http://localhost:9003/rce_get?cmd=cat%20/etc/passwd": [
+        "mutant_methods_modify_content_type"
+    ],
+    "http://localhost:9003/sqli_post": [
+        "mutant_methods_modify_content_type"
+    ],
+    "http://localhost:9003/sqli_json": [
+        "mutant_methods_fake_content_type",
+        "mutant_methods_add_padding",
+        "mutant_methods_change_charset",
+        "mutant_methods_modify_content_type_case"
+    ],
+    "http://localhost:9003/sqli_get?id=1%20UNION%20SELECT%20null,%20password%20FROM%20users%20WHERE%20id%20=%201%20--": [
+        "mutant_methods_modify_content_type"
+    ],
+    "http://localhost:9002/upload": [
+        "mutant_methods_modify_content_type",
+        "mutant_methods_change_extensions",
+        "mutant_upload_methods_double_equals",
+        "mutant_methods_multipart_boundary"
+    ],
+    "http://localhost:9002/rce_post": [
+        "mutant_methods_modify_content_type",
+        "mutant_methods_modify_content_type_case"
+    ],
+    "http://localhost:9002/rce_json": [
+        "mutant_methods_fake_content_type",
+        "mutant_methods_change_charset",
+        "mutant_methods_modify_content_type_case"
+    ],
+    "http://localhost:9002/rce_get?cmd=cat%20/etc/passwd": [
+        "mutant_methods_modify_content_type",
+        "mutant_methods_multipart_form_data",
+        "mutant_methods_modify_content_type_case"
+    ],
+    "http://localhost:9002/sqli_post": [
+        "mutant_methods_modify_content_type",
+        "mutant_methods_modify_content_type_case"
+    ],
+    "http://localhost:9002/sqli_json": [
+        "mutant_methods_fake_content_type",
+        "mutant_methods_change_charset",
+        "mutant_methods_modify_content_type_case"
+    ],
+    "http://localhost:9002/sqli_get?id=1%20UNION%20SELECT%20null,%20password%20FROM%20users%20WHERE%20id%20=%201%20--": [
+        "mutant_methods_modify_content_type",
+        "mutant_methods_multipart_form_data",
+        "mutant_methods_modify_content_type_case"
+    ]
+}

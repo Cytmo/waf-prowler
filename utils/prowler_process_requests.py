@@ -6,6 +6,7 @@ import requests
 # from utils.prowler_mutant import prowler_begin_to_mutant_payloads
 from utils.prowler_mutant_methods import mutant_methods_map
 from utils.prowler_mutant import prowler_begin_to_mutant_payloads
+
 from utils.prowler_rl import prowler_begin_to_mutant_payload_with_rl
 from utils.prowler_rl import send_requests as send_requests_for_rl
 from utils.logUtils import LoggerSingleton

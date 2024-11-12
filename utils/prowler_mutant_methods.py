@@ -1,3 +1,4 @@
+from collections import Counter
 import copy
 import itertools
 import json
@@ -1491,6 +1492,47 @@ def mutant_methods_convert_get_to_post(headers, url, method, data, files):
             'files': files
         })
     return mutant_payloads
+
+
+
+def get_weighted_mutant_methods(mutant_methods_config):
+    memory_file_path = "config/memory.json"
+    method_counter = Counter()
+    global mutant_methods
+    logger.debug(TAG + " ==> mutant_methods before weighted: " + str(mutant_methods))
+
+    # 检查 memory.json 文件是否存在
+    if os.path.exists(memory_file_path):
+        with open(memory_file_path, "r") as f:
+            try:
+                memories = json.load(f)
+            except json.decoder.JSONDecodeError:
+                memories = {}
+
+        # 遍历每个 URL 的成功方法，统计每个 mutant_method 的出现次数
+        for url, methods in memories.items():
+            method_counter.update(methods)
+
+    logger.debug(TAG + " ==> method_counter: " + str(method_counter))
+
+    # 从 mutant_methods_config 获取启用的 mutant_methods，包含方法名和函数对象
+    enabled_methods = [
+        (method_name, func) for method_name, (func, enabled) in mutant_methods_config.items()
+        if enabled
+    ]
+
+    # 按出现次数进行排序，出现次数多的优先
+    enabled_methods.sort(key=lambda x: method_counter[x[0]], reverse=True)
+
+    # 更新 mutant_methods 仅包含排序后的函数对象
+    mutant_methods = [func for _, func in enabled_methods]
+
+    logger.debug(TAG + " ==> mutant_methods after weighted: " + str(mutant_methods))
+    
+    return mutant_methods
+
+
+
 '''
 ALL MUTANT METHODS:
 mutant_methods_modify_content_type
@@ -1529,10 +1571,10 @@ mutant_methods_garbage_character_obfuscation
 '''
 # 为变异方法添加开关
 mutant_methods_config = {
-        "mutant_methods_modify_content_type_case": (mutant_methods_modify_content_type_case, True),
+    "mutant_methods_modify_content_type_case": (mutant_methods_modify_content_type_case, True),
     "mutant_methods_modify_content_type": (mutant_methods_modify_content_type, True),
     "mutant_methods_fake_content_type": (mutant_methods_fake_content_type, True),
-        "mutant_methods_add_harmless_command_for_get_request": (mutant_methods_add_harmless_command_for_get_request, True),
+    "mutant_methods_add_harmless_command_for_get_request": (mutant_methods_add_harmless_command_for_get_request, True),
     "mutant_methods_case_and_comment_obfuscation": (mutant_methods_case_and_comment_obfuscation, False),
     "mutant_methods_url_encoding": (mutant_methods_url_encoding, True),
     "mutant_methods_unicode_normalization": (mutant_methods_unicode_normalization, False),
@@ -1541,10 +1583,8 @@ mutant_methods_config = {
     "mutant_methods_multipart_boundary": (mutant_methods_multipart_boundary, True),
     "mutant_upload_methods_double_equals": (mutant_upload_methods_double_equals, True),
     "mutant_methods_delete_content_type_of_data": (mutant_methods_delete_content_type_of_data, True),
-
     "mutant_methods_modify_case_of_content_type": (mutant_methods_modify_case_of_content_type, True),
     "mutant_methods_add_Content_Type_for_get_request": (mutant_methods_add_Content_Type_for_get_request, True),
-
     "mutant_methods_chunked_transfer_encoding": (mutant_methods_chunked_transfer_encoding, False),
     "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data, True),
     "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation, False),
@@ -1613,15 +1653,18 @@ def generate_combinations(mutant_methods):
     """ 生成两两组合的变异方法 """
     return list(itertools.combinations(mutant_methods, 2))
 
-
-
-
 # 初始化启用的变异方法
 mutant_methods = [
     method for method, enabled in mutant_methods_config.values()
     if enabled
 ]
-
+# 权重计算是否已经进行
+weight_calculated = False
+if not weight_calculated:
+    logger.info(TAG + "==>Calculating weights for mutant methods")
+    mutant_methods = get_weighted_mutant_methods(mutant_methods_config)
+    weight_calculated = True
+    
 # 构建一个函数名称到函数的映射
 mutant_methods_map = {
     method.__name__: method
