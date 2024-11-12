@@ -21,7 +21,7 @@ from requests.models import Request, PreparedRequest
 logger = LoggerSingleton().get_logger()
 resLogger = JSONLogger()
 TAG = "prowler_process_requests.py: "
-HTTP_CONNECTION_TIMEOUT = 0.1
+HTTP_CONNECTION_TIMEOUT = 0.2
 
 def handle_json_response(response):
     try:
@@ -333,16 +333,17 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                     #         sub_mutant_payload['mutant_method'] = success_method_item.__name__
                     #     mutant_payloads.extend(sub_mutant_payloads)
                     # 获取变异后的 payloads
+                    enable_shortcut_for_mutant = enable_shortcut
                     if len(mutant_payloads) == 0:
                         if rl:
                         # mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
                             mutant_payloads = prowler_begin_to_mutant_payload_with_rl(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body)
                         else:
-                            mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
+                            mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant,enable_shortcut=enable_shortcut_for_mutant)
                     if len(mutant_payloads) == 0:
                         # use normal mutant
                         rl = False  
-                        mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
+                        mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant,enable_shortcut=enable_shortcut_for_mutant)
                     # 遍历 mutant_payloads 执行 payload
                     for mutant_payload in mutant_payloads:
                         if rl:

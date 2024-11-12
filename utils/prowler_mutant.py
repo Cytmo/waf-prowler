@@ -72,12 +72,12 @@ def dd_mutant(headers,url,method,data,files):
 
 
 
-def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None,memory=None,deep_mutant=False,dd_enabled=False):
+def prowler_begin_to_mutant_payloads(headers, url, method, data,files=None,memory=None,deep_mutant=False,dd_enabled=False,enable_shortcut=True):
     logger.info(TAG + "==>begin to mutant payloads")
     url_backup = copy.deepcopy(url)
     mutant_payloads = []
   # 检查memory.json是否存在且不使用深度变异
-    if os.path.exists("config/memory.json") and not deep_mutant:
+    if os.path.exists("config/memory.json") and not deep_mutant and enable_shortcut:
         with open("config/memory.json", "r") as f:
             try:
                 memories = json.load(f)

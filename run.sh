@@ -35,6 +35,8 @@ case $execution_choice in
         ;;
     2)
         echo "Running waf-prowler without memory..."
+        rm config/memory.json
+        echo "Memory file deleted"
         command="$profile_command main.py -m --disable-memory $snakeviz_command"
         ;;
     3)
