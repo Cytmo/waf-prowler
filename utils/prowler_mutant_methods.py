@@ -1529,8 +1529,10 @@ mutant_methods_garbage_character_obfuscation
 '''
 # 为变异方法添加开关
 mutant_methods_config = {
+        "mutant_methods_modify_content_type_case": (mutant_methods_modify_content_type_case, True),
     "mutant_methods_modify_content_type": (mutant_methods_modify_content_type, True),
     "mutant_methods_fake_content_type": (mutant_methods_fake_content_type, True),
+        "mutant_methods_add_harmless_command_for_get_request": (mutant_methods_add_harmless_command_for_get_request, True),
     "mutant_methods_case_and_comment_obfuscation": (mutant_methods_case_and_comment_obfuscation, False),
     "mutant_methods_url_encoding": (mutant_methods_url_encoding, True),
     "mutant_methods_unicode_normalization": (mutant_methods_unicode_normalization, False),
@@ -1539,10 +1541,10 @@ mutant_methods_config = {
     "mutant_methods_multipart_boundary": (mutant_methods_multipart_boundary, True),
     "mutant_upload_methods_double_equals": (mutant_upload_methods_double_equals, True),
     "mutant_methods_delete_content_type_of_data": (mutant_methods_delete_content_type_of_data, True),
-    "mutant_methods_modify_content_type_case": (mutant_methods_modify_content_type_case, True),
+
     "mutant_methods_modify_case_of_content_type": (mutant_methods_modify_case_of_content_type, True),
     "mutant_methods_add_Content_Type_for_get_request": (mutant_methods_add_Content_Type_for_get_request, True),
-    "mutant_methods_add_harmless_command_for_get_request": (mutant_methods_add_harmless_command_for_get_request, True),
+
     "mutant_methods_chunked_transfer_encoding": (mutant_methods_chunked_transfer_encoding, False),
     "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data, True),
     "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation, False),
@@ -1620,6 +1622,11 @@ mutant_methods = [
     if enabled
 ]
 
+# 构建一个函数名称到函数的映射
+mutant_methods_map = {
+    method.__name__: method
+    for method in mutant_methods
+}
 
 disabled_mutant_methods = [
     method for method, enabled in mutant_methods_config.values()

@@ -1,8 +1,10 @@
+import copy
 import json
 import os
 import time
 import requests
 # from utils.prowler_mutant import prowler_begin_to_mutant_payloads
+from utils.prowler_mutant_methods import mutant_methods_map
 from utils.prowler_mutant import prowler_begin_to_mutant_payloads
 from utils.prowler_rl import prowler_begin_to_mutant_payload_with_rl
 from utils.prowler_rl import send_requests as send_requests_for_rl
@@ -274,6 +276,8 @@ def run_payload(payload, host, port, waf=False):
 def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_ENABLED=False,enable_shortcut=True,enable_dd=False,rl=False):
     results = []
     rl_backup = rl
+    # 字典：记录成功的mutant_method
+    success_method = []
     for payload in payloads:
         # get the payload data
         result = run_payload(payload, host, port, waf)
@@ -299,20 +303,41 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
             processed_req = process_requests(headers, url, method, data=data, files=files)
             logger.info(TAG + "==>PAYLOAD_MUTANT_ENABLED: " + str(PAYLOAD_MUTANT_ENABLED))
             if PAYLOAD_MUTANT_ENABLED:
+                i = 0
+                
                 success_after_mutant = False 
-                deep_mutant = False
+                if method == 'GET':
+                    deep_mutant = True
+                else:
+                    deep_mutant = False
                 end_mutant = False
                 # if method == 'GET':
                 #     deep_mutant = True
                 # 修改终止条件为 end_mutant == False
-                while not success_after_mutant and not end_mutant:
-
+                while not end_mutant:
+                    mutant_payloads = []
+                    
+                    # for success_method_item in success_method:
+                    #     headers_copy = copy.deepcopy(processed_req.headers)
+                    #     url_copy = copy.deepcopy(processed_req.url)
+                    #     method_copy = copy.deepcopy(processed_req.method)
+                    #     data_copy = copy.deepcopy(processed_req.body)
+                    #     files_copy = None
+                    #     # 从mutant_methods列表中取出对应的方法
+                    #     success_method_item = mutant_methods_map[success_method_item]
+                    #     sub_mutant_payloads = success_method_item(headers_copy, url_copy, method_copy, data_copy, files_copy)
+                    #     if not sub_mutant_payloads:
+                    #         logger.warning(TAG + "==>no sub mutant payloads for method: " + str(success_method_item.__name__))
+                    #     for sub_mutant_payload in sub_mutant_payloads:
+                    #         sub_mutant_payload['mutant_method'] = success_method_item.__name__
+                    #     mutant_payloads.extend(sub_mutant_payloads)
                     # 获取变异后的 payloads
-                    if rl:
-                    # mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
-                        mutant_payloads = prowler_begin_to_mutant_payload_with_rl(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body)
-                    else:
-                        mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
+                    if len(mutant_payloads) == 0:
+                        if rl:
+                        # mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
+                            mutant_payloads = prowler_begin_to_mutant_payload_with_rl(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body)
+                        else:
+                            mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant)
                     if len(mutant_payloads) == 0:
                         # use normal mutant
                         rl = False  
@@ -333,6 +358,8 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                             # 记录成功的 payload
                             resLogger.log_result(result)
                             success_after_mutant = True
+                            print(mutant_payload)
+                            success_method.append(mutant_payload['mutant_method'])
                             if enable_shortcut:
                                 break
                         else:
@@ -344,17 +371,26 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                         if rl:
                             rl = False
                             logger.warning(TAG + "==>url: " + result['url'] + " rl failed, use normal mutant")
+                    if not success_after_mutant and deep_mutant:
+                        logger.warning(TAG + "==>url: " + result['url'] + " deep mutant failed")
+                        end_mutant = True
                     # 如果还未成功并且 deep_mutant 为 False，进行深度变异
                     if not success_after_mutant and not deep_mutant:
-
                         #     time.sleep(10)
                         if method != 'GET':
                             end_mutant = True
                         else:
                             deep_mutant = True
                         logger.warning(TAG + "==>url: " + result['url'] + " begin deep mutant")
+                        
                     # 如果深度变异也失败，终止变异过程
-                    elif not success_after_mutant and deep_mutant:
-                        logger.warning(TAG + "==>url: " + result['url'] + " deep mutant failed")
+                    # elif not success_after_mutant and deep_mutant:
+                    #     logger.warning(TAG + "==>url: " + result['url'] + " deep mutant failed")
+                    #     end_mutant = True
+                    if success_after_mutant and enable_shortcut:
                         end_mutant = True
+                    if not enable_shortcut:
+                        i += 1
+                        if i ==2:
+                            end_mutant = True
     return results

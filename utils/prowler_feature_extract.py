@@ -157,21 +157,28 @@ def prowler_feature_extract(request: Dict[str, Any]) -> np.ndarray:
 if __name__ == "__main__":
     # 示例请求字典
     http_request = {
-        "url": "http://localhost:8003/upload",
-        "method": "POST",
-        "headers": {
-            "Host": "localhost:8003",
-            "Cache-Control": "max-age=0",
-            "Upgrade-Insecure-Requests": "1",
-            "Origin": "http://localhost:8003",
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-            "Referer": "http://localhost:8003/",
-            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,vi;q=0.7",
-            "Connection": "close"
-        },
-        "body": "SELECT * FROM users WHERE id = 1"  # 示例主体
-    }
+    "url": "http://localhost:8003/upload",
+    "method": "POST",
+    "headers": {
+        "Host": "localhost:8003",
+        "Cache-Control": "max-age=0",
+        "Upgrade-Insecure-Requests": "1",
+        "Origin": "http://localhost:8003",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Referer": "http://localhost:8003/",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,vi;q=0.7",
+        "Connection": "close"
+    },
+    "files": {
+        "file": {
+          "filename": "1.php",
+          "content": "123",
+          "content_type": "application/x-httpd-php"
+        }
+      },
+}
+
 
     # 提取特征向量
     feature_vector = extract_features(http_request)
