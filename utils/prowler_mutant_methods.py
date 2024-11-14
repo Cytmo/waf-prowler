@@ -28,16 +28,16 @@ def mutant_methods_modify_content_type(headers, url, method, data, files):
                 'data': data,
                 'files': files
             })
-    # else:
-    #     for content_type in content_types:
-    #         headers['Content-Type'] =  ';'+content_type + ';'
-    #         mutant_payloads.append({
-    #             'headers': headers,
-    #             'url': url,
-    #             'method': method,
-    #             'data': data,
-    #             'files': files
-    #         })        
+    else:
+        for content_type in content_types:
+            headers['Content-Type'] =  ';'+content_type + ';'
+            mutant_payloads.append({
+                'headers': headers,
+                'url': url,
+                'method': method,
+                'data': data,
+                'files': files
+            })        
     return mutant_payloads
 
 
@@ -1608,8 +1608,8 @@ mutant_methods_config = {
 
 # 为变异方法添加开关
 mutant_methods_config_for_rl = {
-    "mutant_methods_modify_content_type": (mutant_methods_modify_content_type, True),
     "mutant_methods_fake_content_type": (mutant_methods_fake_content_type, True),
+    "mutant_methods_modify_content_type": (mutant_methods_modify_content_type, True),
     "mutant_methods_case_and_comment_obfuscation": (mutant_methods_case_and_comment_obfuscation, False),
     "mutant_methods_url_encoding": (mutant_methods_url_encoding, False),
     "mutant_methods_unicode_normalization": (mutant_methods_unicode_normalization, False),
@@ -1646,7 +1646,8 @@ deep_mutant_methods_config = {
     "mutant_methods_chunked_transfer_encoding": (mutant_methods_chunked_transfer_encoding, False),
     "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data,  False),
     "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation,  False),
-    "mutant_methods_convert_get_to_post": (mutant_methods_convert_get_to_post, True),
+    "mutant_methods_convert_get_to_post": (mutant_methods_convert_get_to_post, False),
+    "mutant_methods_change_request_method": (mutant_methods_change_request_method, True),
 }
 # 生成两两组合的变异方法
 def generate_combinations(mutant_methods):

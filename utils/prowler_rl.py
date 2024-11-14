@@ -47,10 +47,10 @@ logger = LoggerSingleton().get_logger()
 TAG = "prowler_rl_based_mutant.py: "
 
 # RL PARAMETERS
-SELF_MAX_STEPS = 10
-MAX_TIME_STEPS = 10000
+SELF_MAX_STEPS = 20
+MAX_TIME_STEPS = 18000
 #熵损失
-ENTROPY_LOSS = 0.01
+ENTROPY_LOSS = 0.1
 LEARNING_RATE = 0.0001 
 
 
@@ -475,15 +475,22 @@ class WAFBypassEnv(gym.Env):
         logger.warning("Applying special mutation method.")
         payload_to_mutate = copy.deepcopy(self.payload)
         special_method_name, special_method_func = deep_mutant_methods[0]
-
+        headers, url, method, data = payload_to_mutate.get('headers'), payload_to_mutate.get('url'), payload_to_mutate.get('method'), payload_to_mutate.get('body')    
         try:
-            payloads = special_method_func(
-                payload_to_mutate.get('headers'),
-                payload_to_mutate.get('url'),
-                payload_to_mutate.get('method'),
-                payload_to_mutate.get('body'),
+            headers, url, method, data,files ,res= special_method_func(
+                headers,
+                url,
+                method,
+                data,
                 None
             )
+            payloads= []
+            payloads.append({
+                'headers': headers,
+                'url': url,
+                'method': method,
+                'body': data
+            })
             self._update_payload_from_mutation_results(payloads)
         except Exception as e:
             logger.error(f"Error applying special mutation method '{special_method_name}': {e}")
@@ -517,7 +524,8 @@ class WAFBypassEnv(gym.Env):
             for payload in payloads:
                 if 'data' in payload:
                     payload['body'] = payload.pop('data')
-            self.payload = copy.deepcopy(payloads[0])
+            # 保留最后一个有效载荷
+            self.payload = copy.deepcopy(payloads[-1])
             self.payloads = payloads
         logger.info(f"{TAG}==>mutated payload: {self.payload}")
 
@@ -538,7 +546,7 @@ class WAFBypassEnv(gym.Env):
         for payload in self.payloads:
             if len(str(payload)) >= 5000:
                 logger.info(TAG + "==>payload too long, skip")
-                reward -= 1  # 减少负奖励
+                reward -= 3  # 减少负奖励
                 success = False
                 break
 
@@ -567,7 +575,7 @@ class WAFBypassEnv(gym.Env):
                 elif status_code == 0:  # 超时
                     reward -= 1
                 else:
-                    reward -= 0.1
+                    reward -= 0.5
                 # 更新动作失败计数
                 if self.last_action >= 0 and self.last_action < self.total_methods:
                     self.action_failure_counts[self.last_action] += 1
@@ -776,7 +784,7 @@ def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=No
                 # 在 "all" 模式下，找到多个成功的 payload 后继续尝试
                 break
             
-            if total_steps >= 5:
+            if total_steps >= 50:
                 break
             
             logger.debug(f"Attempt {attempt + 1}, Action: {action}, Reward: {reward}")

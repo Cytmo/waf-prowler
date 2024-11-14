@@ -368,14 +368,11 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                             result['success'] = False
                             results.append(result)
                             logger.warning(TAG + "==>url: " + result['url'] + " failed after mutant " + " response: " + str(result['response_text']))
-                    if not success_after_mutant:
-                                                # 若强化学习失败，使用普通变异
-                        if rl:
-                            rl = False
-                            logger.warning(TAG + "==>url: " + result['url'] + " rl failed, use normal mutant")
-                    if not success_after_mutant and deep_mutant:
-                        logger.warning(TAG + "==>url: " + result['url'] + " deep mutant failed")
-                        end_mutant = True
+                    # if not success_after_mutant:
+                    #                             # 若强化学习失败，使用普通变异
+                    #     if rl:
+                    #         rl = False
+                    #         logger.warning(TAG + "==>url: " + result['url'] + " rl failed, use normal mutant")
                     # 如果还未成功并且 deep_mutant 为 False，进行深度变异
                     if not success_after_mutant and not deep_mutant:
                         #     time.sleep(10)
