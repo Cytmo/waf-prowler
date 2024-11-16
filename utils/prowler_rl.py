@@ -12,9 +12,10 @@ import os
 import requests
 import http.client
 import gzip
+import torch
 from bs4 import BeautifulSoup
 import io
-
+from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3 import PPO
 import xml.etree.ElementTree as ET
 from urllib.parse import urlparse
@@ -48,11 +49,7 @@ TAG = "prowler_rl_based_mutant.py: "
 
 # RL PARAMETERS
 SELF_MAX_STEPS = 20
-MAX_TIME_STEPS = 18000
-#熵损失
-ENTROPY_LOSS = 0.1
-LEARNING_RATE = 0.0001 
-
+MAX_TIME_STEPS = 35000
 
 def handle_json_response(response):
     try:
@@ -326,7 +323,7 @@ class WAFBypassEnv(gym.Env):
         self.ACTION_SKIP = self.num_methods + 1
         self.ACTION_SPECIAL_MUTATION = self.num_methods + 2
         self.enabled_methods = enabled_methods
-
+        self.state_visit_counts = {}
         # 计算总的动作数量，包括特殊动作
         self.total_methods = self.num_methods + 3
 
@@ -401,8 +398,8 @@ class WAFBypassEnv(gym.Env):
         payload_features = self.extract_features(self.payload)
 
         # 应用时间衰减到动作执行次数
-        decay_factor = 0.9  # 可以根据需要调整
-        decayed_action_counts = self.action_execution_counts * (decay_factor ** self.current_step)
+        decayed_action_counts = self.action_execution_counts / (1 + self.current_step)
+
 
         # 计算动作成功率
         total_counts = self.action_success_counts + self.action_failure_counts + 1e-5  # 防止除以零
@@ -436,6 +433,9 @@ class WAFBypassEnv(gym.Env):
             past_actions_flat,
             payload_features
         ]).astype(np.float32)
+        # 记录状态访问次数
+        # state_hash = hash(tuple(self.state))
+        # self.state_visit_counts[state_hash] = self.state_visit_counts.get(state_hash, 0) + 1
 
         return state
 
@@ -453,9 +453,12 @@ class WAFBypassEnv(gym.Env):
             self._apply_mutation(action)
 
         self.state = self._get_state()
-        reward, self.success = self._calculate_reward()
+        if action == self.ACTION_RESTORE:
+            reward = -0.1
+        else:
+            reward, self.success = self._calculate_reward()
         done = self.success or self.current_step >= self.max_steps
-
+        logger.warning(TAG + f"==>reward: {reward}, success: {self.success}, done: {done}")
         return self.state, reward, done, False, {}
 
     def _record_action(self, action):
@@ -557,12 +560,15 @@ class WAFBypassEnv(gym.Env):
                 status_code = 0
 
             if status_code == 200:
-                reward += 5  # 成功奖励
+                base_success_reward = 1.5  # 减少单次成功的奖励
+                reward += base_success_reward
                 success = True
                 logger.warning("WAF bypassed!")
 
+                # 检查是否为新的策略
                 if current_payload_hash not in self.previous_payloads:
-                    reward += 5  # 给予额外奖励以鼓励多样性
+                    diversity_bonus = 2  # 增加多样性奖励
+                    reward += diversity_bonus
                     self.previous_payloads.add(current_payload_hash)
                     logger.info(TAG + "==>payload diversity rewarded")
                 # 更新动作成功计数
@@ -571,15 +577,27 @@ class WAFBypassEnv(gym.Env):
                 break
             else:
                 if status_code == 403:
-                    reward -= 0.5  # 减少负奖励
+                    reward -= 1.2  # 减少负奖励
                 elif status_code == 0:  # 超时
-                    reward -= 1
+                    reward -= 1.5
                 else:
-                    reward -= 0.5
+                    reward -= 1.1
+              # 增加对动作多样性的奖励
+
                 # 更新动作失败计数
                 if self.last_action >= 0 and self.last_action < self.total_methods:
                     self.action_failure_counts[self.last_action] += 1
             logger.info(TAG + f"==> Status code: {status_code}, Reward: {reward}")
+        unique_actions = len(set(self.past_actions)) - 1  # 减去初始值 -1
+        diversity_reward = unique_actions * 0.05
+        reward += diversity_reward
+        # 状态探索奖励
+        state_hash = hash(tuple(self.state))
+        visit_count = self.state_visit_counts.get(state_hash, 1)
+        exploration_bonus = 0.5 / np.sqrt(visit_count)
+        reward += exploration_bonus
+        logger.info(TAG + f"==> Added diversity reward: {diversity_reward} and exploration bonus: {exploration_bonus}\
+                    final reward: {reward}")
         return reward, success
 
     def get_payload(self):
@@ -622,11 +640,50 @@ def initialize_model(payload, enabled_mutant_methods, model_path="ppo_waf_bypass
 
 def create_new_model(env):
     """创建新的 PPO 模型"""
-    return PPO("MlpPolicy", env,learning_rate=LEARNING_RATE,ent_coef=ENTROPY_LOSS, verbose=1, device="cuda")
-def train_model(model, payloads, enabled_mutant_methods, total_timesteps=MAX_TIME_STEPS):
+
+    import torch  # 确保导入 torch 库
+
+    # 定义更复杂的网络结构
+    policy_kwargs = dict(
+        net_arch=[dict(pi=[128, 128, 64], vf=[128, 128, 64])],  # 定义策略和价值网络的层次结构
+        activation_fn=torch.nn.ReLU  # 选择激活函数，例如 ReLU
+    )
+
+    # 增加采样步数和调整相关参数
+    n_steps = 4096       # 每次更新前的采样步数
+    batch_size = 256     # 批量大小，应是 n_steps 的约数
+    n_epochs = 10        # 每次更新的迭代次数
+
+    #熵损失
+    ENTROPY_LOSS = 0.005
+    LEARNING_RATE = 0.001 
+
+    return PPO(
+        "MlpPolicy",
+        env,
+        learning_rate=LEARNING_RATE,
+        ent_coef=ENTROPY_LOSS,
+        n_steps=n_steps,
+        batch_size=batch_size,
+        n_epochs=n_epochs,
+        policy_kwargs=policy_kwargs,
+        verbose=1,
+        device="cuda"
+    )
+def train_model(model,payloads, enabled_mutant_methods, total_timesteps=MAX_TIME_STEPS):
     """遍历 payloads 并逐个训练模型"""
     global LOAD_NUM
     for i, payload_for_rl in enumerate(payloads):
+        # if payload_for_rl.method == 'GET':
+        #     logger.warning(f"Converting GET request to POST: {payload_for_rl.url}")
+        #     payload_to_convert = copy.deepcopy(payload_for_rl)
+        #     headers, url, method, data = payload_to_convert.headers, payload_to_convert.url, payload_to_convert.method, payload_to_convert.body
+            # headers, url, method, data,files,res = mutant_methods_change_request_method(headers, url, method, data, None)
+            # payload_for_rl.headers = headers
+            # payload_for_rl.url = url
+            # payload_for_rl.method = method
+            # payload_for_rl.body = data
+
         if i < LOAD_NUM:
             logger.warning(f"Skip payload {i + 1}/{len(payloads)}")
             continue
@@ -645,6 +702,70 @@ def train_model(model, payloads, enabled_mutant_methods, total_timesteps=MAX_TIM
 
     # 最终保存模型
     model.save("ppo_waf_bypass")
+
+
+# def make_env(enabled_mutant_methods, payload_for_rl, env_id):
+#     def _init():
+#         env = WAFBypassEnv(enabled_mutant_methods, payload_for_rl)
+#         return env
+#     return _init
+
+# def create_vectorized_envs(enabled_mutant_methods, payloads, num_envs):
+#     envs = []
+#     for i in range(num_envs):
+#         payload = payloads[i % len(payloads)]
+#         env_fn = make_env(enabled_mutant_methods, payload, i)
+#         envs.append(env_fn)
+#     vec_env = SubprocVecEnv(envs)
+#     return vec_env
+
+# def create_new_model(env):
+#     """创建新的 PPO 模型"""
+
+#     policy_kwargs = dict(
+#         net_arch=[dict(pi=[128, 128, 64], vf=[128, 128, 64])],
+#         activation_fn=torch.nn.ReLU
+#     )
+
+#     n_steps = 2048
+#     batch_size = 256
+#     n_epochs = 10
+#     #熵损失
+#     ENTROPY_LOSS = 0.005
+#     LEARNING_RATE = 0.001 
+#     return PPO(
+#         "MlpPolicy",
+#         env,
+#         learning_rate=LEARNING_RATE,
+#         ent_coef=ENTROPY_LOSS,
+#         n_steps=n_steps,
+#         batch_size=batch_size,
+#         n_epochs=n_epochs,
+#         policy_kwargs=policy_kwargs,
+#         verbose=1,
+#         device="cuda"
+#     )
+
+# def train_model(payloads, enabled_mutant_methods, total_timesteps):
+#     """在并行环境中训练模型"""
+#     num_envs = min(len(payloads), 8)
+#     vec_env = create_vectorized_envs(enabled_mutant_methods, payloads, num_envs)
+#     logger.warning(f"Training on {len(payloads)} payloads using {num_envs} parallel environments.")
+
+#     # 检查是否存在已保存的模型
+#     model_path = "ppo_waf_bypass.zip"
+#     if os.path.exists(model_path):
+#         # 加载已有模型，并指定新的环境
+#         model = PPO.load(model_path, env=vec_env, device="cuda")
+#         logger.warning("Loaded existing model.")
+#     else:
+#         # 创建新的模型
+#         model = create_new_model(vec_env)
+#         logger.warning("Created new model.")
+
+#     # 开始训练
+#     model.learn(total_timesteps=total_timesteps)
+#     model.save("ppo_waf_bypass")
 def test_model(model, env):
     """测试模型在特定环境中的性能"""
     obs, _ = env.reset()
@@ -728,7 +849,7 @@ def test_model(model, env):
 #     mutant_payloads.append(mutant_payload)
 
 #     return mutant_payloads
-def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=None, attempts=5, mode="all"):
+def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=None, attempts=1, mode="all"):
     """
     Parameters:
         headers: dict, 请求头
@@ -741,6 +862,10 @@ def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=No
     """
     logger.warning(TAG + "==> Begin mutating payloads with RL")
     mutant_payloads = []
+    if method == 'GET':
+        headers, url, method, data,files,res = mutant_methods_change_request_method(headers, url, method, data, files)
+        logger.warning(f"Converting GET request to POST: {url}, result: {res}")
+        
 
     # 创建一个符合 WAFBypassEnv 要求的字典结构
     payload_for_rl = {
@@ -751,7 +876,7 @@ def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=No
     }
 
     # 加载预训练的模型
-    model = PPO.load("ppo_waf_bypass", device="cuda")
+    model = PPO.load("ppo_waf_bypass3", device="cuda")
 
     for attempt in range(attempts):
         # 创建环境并重置，获取初始观察
@@ -773,7 +898,7 @@ def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=No
             total_steps += 1
             
             # 仅保留奖励为 100 的 payload
-            if reward > 0:
+            if reward > 1:
                 payload = env.get_payload()
                 mutant_payloads.append(copy.deepcopy(payload))
                 logger.info("Added payload with reward 100 to mutant_payloads")
@@ -784,7 +909,8 @@ def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=No
                 # 在 "all" 模式下，找到多个成功的 payload 后继续尝试
                 break
             
-            if total_steps >= 50:
+            if total_steps >= 5:
+                # done = True
                 break
             
             logger.debug(f"Attempt {attempt + 1}, Action: {action}, Reward: {reward}")
@@ -808,11 +934,10 @@ if __name__ == "__main__":
                 os.remove(model_name)
     if "--verbose" not in sys.argv:
         logger.warning("Verbose mode is disabled.")
-        logger.setLevel("WARNING")
+        logger.setLevel("CRITICAL")
 
     # 加载并解析 payloads
-    # payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload("test/test_payloads")
-    payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload("config/payload/json")
+    payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload("config/payload1/json")
 
 
     payloads_processed = []
@@ -834,7 +959,7 @@ if __name__ == "__main__":
 
     model = initialize_model(payloads_processed[0], enabled_mutant_methods)
     # 训练模型
-    train_model(model, payloads_processed, enabled_mutant_methods, total_timesteps=MAX_TIME_STEPS)
+    train_model(model,payloads_processed, enabled_mutant_methods, total_timesteps=MAX_TIME_STEPS)
 
     # 测试模型
     # 对所有的payload进行测试

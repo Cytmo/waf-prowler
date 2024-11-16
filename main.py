@@ -204,6 +204,10 @@ logger.info(TAG+'程序运行时间:%s毫秒' % ((T2 - T1)*1000))
 # 打印日志文件路径，获取log文件夹下最新的日志文件
 newest_log_file = sorted([os.path.join("log", f) for f in os.listdir("log")], key=os.path.getctime)[-1]
 logger.info(TAG + "日志文件路径: %s" % newest_log_file)
-newest_result_file = sorted([os.path.join("result", f) for f in os.listdir("result")], key=os.path.getctime)[-1]
-deduplicate_results(newest_result_file, newest_result_file)
-logger.info(TAG + "结果文件路径: %s" % newest_result_file)
+try:
+    # 打印结果文件路径，获取result文件夹下最新的结果文件
+    newest_result_file = sorted([os.path.join("result", f) for f in os.listdir("result")], key=os.path.getctime)[-1]
+    logger.info(TAG + "结果文件路径: %s" % newest_result_file)
+except:
+    pass
+# logger.info(TAG + "结果文件路径: %s" % newest_result_file)

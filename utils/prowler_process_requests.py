@@ -340,10 +340,12 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                             mutant_payloads = prowler_begin_to_mutant_payload_with_rl(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body)
                         else:
                             mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant,enable_shortcut=enable_shortcut_for_mutant)
-                    if len(mutant_payloads) == 0:
-                        # use normal mutant
-                        rl = False  
+                    if len(mutant_payloads) == 0 and rl:
+                        rl = False
                         mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant,enable_shortcut=enable_shortcut_for_mutant)
+                    #     # use normal mutant
+                    #     rl = False  
+                    #     mutant_payloads = prowler_begin_to_mutant_payloads(processed_req.headers, processed_req.url, processed_req.method, data=processed_req.body, deep_mutant=deep_mutant,enable_shortcut=enable_shortcut_for_mutant)
                     # 遍历 mutant_payloads 执行 payload
                     for mutant_payload in mutant_payloads:
                         if rl:
@@ -361,7 +363,8 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                             resLogger.log_result(result)
                             success_after_mutant = True
                             print(mutant_payload)
-                            success_method.append(mutant_payload['mutant_method'])
+                            if not rl:
+                                success_method.append(mutant_payload['mutant_method'])
                             if enable_shortcut:
                                 break
                         else:
@@ -374,21 +377,25 @@ def prowler_begin_to_send_payloads(host,port,payloads,waf=False,PAYLOAD_MUTANT_E
                     #         rl = False
                     #         logger.warning(TAG + "==>url: " + result['url'] + " rl failed, use normal mutant")
                     # 如果还未成功并且 deep_mutant 为 False，进行深度变异
-                    if not success_after_mutant and not deep_mutant:
+                    if not success_after_mutant and not deep_mutant and not rl:
                         #     time.sleep(10)
                         if method != 'GET':
                             end_mutant = True
                         else:
                             deep_mutant = True
                         logger.warning(TAG + "==>url: " + result['url'] + " begin deep mutant")
-                        
+                    if rl and not enable_shortcut:
+                        end_mutant = True
+                    if rl and enable_shortcut:
+                        end_mutant = True
                     # 如果深度变异也失败，终止变异过程
                     # elif not success_after_mutant and deep_mutant:
                     #     logger.warning(TAG + "==>url: " + result['url'] + " deep mutant failed")
                     #     end_mutant = True
                     if success_after_mutant and enable_shortcut:
                         end_mutant = True
-                    if not enable_shortcut:
+                    
+                    if not enable_shortcut and not rl:
                         i += 1
                         if i ==2:
                             end_mutant = True

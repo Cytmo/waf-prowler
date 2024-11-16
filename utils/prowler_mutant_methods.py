@@ -14,11 +14,34 @@ from utils.logUtils import LoggerSingleton
 from utils.dictUtils import content_types
 logger = LoggerSingleton().get_logger()
 TAG = "prowler_mutant_methods.py: "
-def mutant_methods_modify_content_type(headers, url, method, data, files):
+def mutant_methods_modify_content_type_for_rl(headers, url, method, data, files):
     logger.info(TAG + "==>mutant_methods_modify_content_type")
     logger.debug(TAG + "==>headers: " + str(headers))
     mutant_payloads = []
     if 'Content-Type' in headers:
+        for content_type in content_types:
+            headers['Content-Type'] += ';' + content_type
+    else:
+        for content_type in content_types:
+            headers['Content-Type'] =  ';'+content_type + ';'
+    mutant_payloads.append({
+        'headers': headers,
+        'url': url,
+        'method': method,
+        'data': data,
+        'files': files
+    })  
+                  
+    return mutant_payloads
+
+
+def mutant_methods_modify_content_type(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_modify_content_type")
+    logger.debug(TAG + "==>headers: " + str(headers))
+    mutant_payloads = []
+    original_headers = copy.deepcopy(headers)
+    if 'Content-Type' in headers:
+        # use copy.deepcopy to avoid modifying the original headers
         for content_type in content_types:
             headers['Content-Type'] += ';' + content_type
             mutant_payloads.append({
@@ -28,6 +51,7 @@ def mutant_methods_modify_content_type(headers, url, method, data, files):
                 'data': data,
                 'files': files
             })
+            headers = copy.deepcopy(original_headers)
     else:
         for content_type in content_types:
             headers['Content-Type'] =  ';'+content_type + ';'
@@ -37,10 +61,9 @@ def mutant_methods_modify_content_type(headers, url, method, data, files):
                 'method': method,
                 'data': data,
                 'files': files
-            })        
+            })  
+            headers = copy.deepcopy(original_headers)   
     return mutant_payloads
-
-
 
 
 def mutant_methods_change_request_method(headers, url, method, data, files):
@@ -1609,7 +1632,7 @@ mutant_methods_config = {
 # 为变异方法添加开关
 mutant_methods_config_for_rl = {
     "mutant_methods_fake_content_type": (mutant_methods_fake_content_type, True),
-    "mutant_methods_modify_content_type": (mutant_methods_modify_content_type, True),
+    "mutant_methods_modify_content_type_for_rl": (mutant_methods_modify_content_type_for_rl, True),
     "mutant_methods_case_and_comment_obfuscation": (mutant_methods_case_and_comment_obfuscation, False),
     "mutant_methods_url_encoding": (mutant_methods_url_encoding, False),
     "mutant_methods_unicode_normalization": (mutant_methods_unicode_normalization, False),
