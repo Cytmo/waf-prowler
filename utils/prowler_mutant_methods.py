@@ -1464,19 +1464,13 @@ def mutant_methods_multipart_form_data(headers, url, method, data, files):
             })
     return mutant_payloads
 
-# SQL注释符号绕过
 def mutant_methods_sql_comment_obfuscation(headers, url, method, data, files):
-    """ 在SQL查询中插入注释来进行混淆 """
     logger.info(TAG + "==> mutant_methods_sql_comment_obfuscation")
     logger.debug(TAG + "==>headers: " + str(headers))
     
     mutant_payloads = []
     if method == 'GET':
-        # 插入SQL注释到URL中
         obfuscated_url = url.replace(" ", "/**/").replace("%20", "/**/")
-        # 使用SQL注释符号来替换空格
-        
-        # 添加变异后的请求
         mutant_payloads.append({
             'headers': headers,
             'url': obfuscated_url,

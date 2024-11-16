@@ -9,10 +9,10 @@ read -p "Enter option [1-2]: " profiling_choice
 
 echo "Please choose how to run waf-prowler:"
 echo "1. Run waf-prowler with memory..."
-echo "2. Run waf-prowler without memory..."
+echo "2. Run waf-prowler on test data with shortcut disabled..."
 echo "3. Run waf-prowler without memory and disable shortcut..."
 echo "4. Run waf-prowler without memory and with reinforcement learning..."
-echo "5. Run waf-prowler without memory and with reinforcement learning and without shortcut..."
+echo "5. Run waf-prowler on test data..."
 echo "6. Clean up..."
 echo "6. Exit"
 
@@ -34,10 +34,8 @@ case $execution_choice in
         command="$profile_command main.py -m $snakeviz_command"
         ;;
     2)
-        echo "Running waf-prowler without memory..."
-        rm config/memory.json
-        echo "Memory file deleted"
-        command="$profile_command main.py -m --disable-memory $snakeviz_command"
+        echo "Running waf-prowler on test data with shortcut disabled..."
+        command="$profile_command main.py -m --test --disable-shortcut $snakeviz_command"
         ;;
     3)
         echo "Running waf-prowler without memory and disable shortcut..."
@@ -49,8 +47,8 @@ case $execution_choice in
         echo $command
         ;;
     5)
-        echo "Running waf-prowler without memory and with reinforcement learning and without shortcut..."
-        command="$profile_command main.py -m --disable-memory --rl -ds $snakeviz_command"
+        echo "Running waf-prowler on test data..."
+        command="$profile_command main.py -m --test $snakeviz_command"
         ;;
     6)
         echo "Cleaning up..."
