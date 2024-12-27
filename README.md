@@ -1,4 +1,5 @@
 # waf-prowler
+waf-prowler is a reinforment-learning based web application firewall bypass tool, which automatically mutants input payload to bypass waf.
 ## REQUIREMENTS
 `pip install -r requirements.txt`
 ## RUN 
