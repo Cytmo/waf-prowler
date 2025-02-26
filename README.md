@@ -14,3 +14,4 @@ Use 'run.sh' to run the tests or run the following command:
 `python3 main.py --disable-memory -ds` to run the tests without memory and shortcut disabled
 
 
+test
