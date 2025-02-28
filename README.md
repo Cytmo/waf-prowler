@@ -11,8 +11,6 @@ WAF-Prowler是作为一个开箱即用的 Web 恶意载荷变异工具，主要�
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url]
-[![LinkedIn][linkedin-shield]][linkedin-url]
 
 
 <p align="center">
@@ -97,3 +95,15 @@ Use 'run.sh' to run the tests or run the following command:
 │   ├── prowler_send_request.py
 │   └── recordResUtils.py
 ```
+
+
+<!-- links -->
+[your-project-path]:Cytmo/waf-prowler
+[contributors-shield]: https://img.shields.io/github/contributors/Cytmo/waf-prowler.svg?style=flat-square
+[contributors-url]: https://github.com/Cytmo/waf-prowler/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/Cytmo/waf-prowler.svg?style=flat-square
+[forks-url]: https://github.com/Cytmo/waf-prowler/network/members
+[stars-shield]: https://img.shields.io/github/stars/Cytmo/waf-prowler.svg?style=flat-square
+[stars-url]: https://github.com/Cytmo/waf-prowler/stargazers
+[issues-shield]: https://img.shields.io/github/issues/Cytmo/waf-prowler.svg?style=flat-square
+[issues-url]: https://img.shields.io/github/issues/Cytmo/waf-prowler.svg
