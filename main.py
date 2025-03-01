@@ -16,6 +16,16 @@ argparse = argparse.ArgumentParser()
 # argparse.add_argument("-f", "--folder", default="../data",
 #                       help="The folder to be scanned")
 # false 默认单进程 true 多进程
+# 添加一个命令行参数 `-mp` 或 `--multiprocess`，默认值为 "false"，用于指定是否使用多进程
+# 添加一个命令行参数 `--test`，如果指定该参数，则其值为 `True`，用于指定是否使用测试 payload
+# 添加一个命令行参数 `-r` 或 `--raw`，默认值为 "config/payload/json"，用于指定原始 payload 文件的路径
+# 添加一个命令行参数 `--disable-memory`，如果指定该参数，则其值为 `True`，用于指定是否禁用内存
+# 添加一个命令行参数 `-w` 或 `--wsl`，默认值为 "true"，如果指定该参数，则其值为 `True`，用于指定是否使用 WSL (Windows Subsystem for Linux)
+# 添加一个命令行参数 `-m` 或 `--mutant`，如果指定该参数，则其值为 `True`，用于指定是否使用变异体
+# 添加一个命令行参数 `--host`，默认值为 "localhost"，用于指定主机 IP 地址
+# 添加一个命令行参数 `-ds` 或 `--disable-shortcut`，如果指定该参数，则其值为 `True`，用于指定是否禁用快捷方式（即当有任意 payload 成功时是否结束执行）
+# 添加一个命令行参数 `-p` 或 `--plain`，如果指定该参数，则其值为 `True`，用于指定是否使用文本格式的 payload
+# 添加一个命令行参数 `--port`，默认值为 "8001"，用于指定端口号
 argparse.add_argument("-mp", "--multiprocess", default="false",
                       help="if use multiprocess")
 argparse.add_argument("--test", help="if use test payload",action="store_true")
@@ -66,15 +76,25 @@ def generate_unique_id(entry):
     unique_str = f"{entry['url']}{entry['payload']}{entry['original_url']}"
     return hashlib.md5(unique_str.encode()).hexdigest()
 
+
 def deduplicate_results(input_file, output_file):
+    """
+    从输入文件中读取 JSON 数据，去除重复项，并将去重后的结果写入输出文件。
+
+    参数:
+    - input_file (str): 输入文件的路径，包含需要去重的 JSON 数据。
+    - output_file (str): 输出文件的路径，用于保存去重后的 JSON 数据。
+    """
+
     with open(input_file, 'r') as f:
         results = json.load(f)
-
+    # 使用集合来记录已经见过的唯一标识符
     seen_ids = set()
     deduplicated_results = []
-
+    # 用于存储去重后的结果
     for entry in results:
         unique_id = generate_unique_id(entry)
+        # 如果该唯一标识符未被记录过，则将其添加到集合中，并将当前项添加到去重结果中
         if unique_id not in seen_ids:
             seen_ids.add(unique_id)
             deduplicated_results.append(entry)
