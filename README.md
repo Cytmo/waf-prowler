@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://github.com/Cytmo/waf-prowler/images/logo.png" alt="WAF Prowler Logo" width="300"/>
+  <img src="./images/logo.png" alt="WAF Prowler Logo" width="800"/>
   <h1 align="center">WAF Prowler</h1>
   <h3 align="center">基于协议层的WAF脆弱性检测</h3>
 </div>
