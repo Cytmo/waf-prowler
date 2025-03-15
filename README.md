@@ -84,47 +84,46 @@ Use `run.sh` to run the tests or run the following command:
 .
 ├── Mutation-Methods.md
 ├── README.md
-├── bash.sh
 ├── clean.sh
-├── config
-│   ├── log_config.ini
-│   ├── memory.json
-│   ├── payload
-│   └── payload1
+├── images
+│   └── logo.png
+├── src
+│   ├── main.py
+│   ├── config
+│   │   ├── log_config.ini
+│   │   ├── memory.json
+│   │   ├── payload
+│   │   └── payload1
+│   ├── test-payloads
+│   │   ├── PHP5
+│   │   ├── gowaf_modified
+│   │   ├── gowaf_modified.go
+│   │   ├── log
+│   │   ├── run_modified_waf.sh
+│   │   ├── test.go1
+│   │   ├── test.py
+│   │   └── test_payloads
+│   └── utils
+│       ├── dictUtils.py
+│       ├── logUtils.py
+│       ├── prowler_feature_extract.py
+│       ├── prowler_mutant.py
+│       ├── prowler_mutant_methods.py       # 变异方法集合
+│       ├── prowler_parse_raw_payload.py
+│       ├── prowler_process_requests.py
+│       ├── prowler_rl.py
+│       ├── prowler_rl_based_mutant.py
+│       ├── prowler_send_request.py
+│       └── recordResUtils.py
 ├── json_parse.py
-├── main.py
 ├── profile.stats
 ├── requirements.txt
 ├── result
 ├── run.sh                        # 运行脚本
 ├── set_test_env.sh
-├── test
-│   ├── PHP5
-│   ├── gowaf_modified
-│   ├── gowaf_modified.go
-│   ├── log
-│   ├── run_modified_waf.sh
-│   ├── test.go1
-│   ├── test.py
-│   └── test_payloads
-├── test-envs
+├── test-wafs
 │   └── a-simple-waf
-├── test.py
-└── utils
-    ├── dictUtils.py
-    ├── log
-    ├── logUtils.py
-    ├── prowler_feature_extract.py
-    ├── prowler_mutant.py
-    ├── prowler_mutant_methods.py       # 变异方法具体实现
-    ├── prowler_parse_raw_payload.py
-    ├── prowler_process_requests.py
-    ├── prowler_rl copy.py
-    ├── prowler_rl.py
-    ├── prowler_rl_based_mutant.py
-    ├── prowler_send_request.py
-    └── recordResUtils.py
-```
+└── test.py
 
 ## 工具介绍
 

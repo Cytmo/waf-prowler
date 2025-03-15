@@ -12,11 +12,11 @@ read -p "Enter option [1-3]: " choice
 case $choice in
     1)
         echo "Starting Docker service for test environment..."
-        docker-compose -f test-envs/a-simple-waf/docker-compose.yml up -d
+        docker-compose -f test-payloads-envs/a-simple-waf/docker-compose.yml up -d
         ;;
     2)
         echo "Stopping Docker service for test environment..."
-        docker-compose -f test-envs/a-simple-waf/docker-compose.yml down
+        docker-compose -f test-payloads-envs/a-simple-waf/docker-compose.yml down
         ;;
     3)
         echo "Exiting the program"
