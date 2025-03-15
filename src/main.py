@@ -116,38 +116,9 @@ def generate_statistic(results):
     success_rate = total_success / total_attempts if total_attempts > 0 else 0
     logger.info(TAG + "==>Total attempts(initial attempt not included): " + str(total_attempts) + " Total success: " + str(total_success) + " Success rate: " + str(success_rate))
 
-def main():
-    args = parse_arguments()
-    configure_settings(args)
-    # 打印程序配置
-    logger.info(TAG + '程序配置: %s' % args)
-    # read raw payload folder
-    logger.info(TAG + "==>raw payload folder: " + args.raw)
-    if args.plain:
-        payloads = src.utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload(args.raw, plain=True)
-    else:
-        payloads = src.utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload(args.raw)
-    # send payloads to address without waf
-    results = src.utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host, args.port, payloads)
-    formatted_results = json.dumps(results, indent=4,ensure_ascii=False)
-    logger.debug(TAG + "==>results: " + formatted_results)
-    for result in results:
-        if result['response_status_code'] == 200:
-            logger.info(TAG + "==>url: " + result['url'] + " success")
-        else:
-            if result['response_text'] is not None:
-                logger.warning(TAG + "==>url: " + result['url'] + " failed" + " response: " + result['response_text'])
-            else:
-                logger.warning(TAG + "==>url: " + result['url'] + " failed")
-    # send payloads to address with waf
-    if args.mutant:
-        results = src.utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host, args.port, payloads, waf=True, PAYLOAD_MUTANT_ENABLED=True, enable_shortcut=enable_shortcut, rl=args.rl)
-    else:
-        results = src.utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host, args.port, payloads, waf=True, PAYLOAD_MUTANT_ENABLED=False, enable_shortcut=enable_shortcut)
 
-    deduplicate_results(results)
-    generate_statistic(results)
-
+def update_memory(results):
+    """更新内存文件"""
     memories = {}
     for result in results:
         if result['success'] == True:
@@ -162,7 +133,7 @@ def main():
                 # 如果该url不存在，创建一个新的列表
                 if url not in memories:
                     memories[url] = []
-                
+
                 # 添加mutant_method到对应url的列表中，确保不重复
                 if mutant_method not in memories[url]:
                     memories[url].append(mutant_method)
@@ -197,17 +168,49 @@ def main():
     logger.info(f"{TAG} ==> Updated 'memory.json' with new entries.")
 
 
+def main(args):
+    configure_settings(args)
+    # read raw payload folder
+    logger.info(TAG + "==>raw payload folder: " + args.raw)
+    if args.plain:
+        payloads = src.utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload(args.raw, plain=True)
+    else:
+        payloads = src.utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload(args.raw)
+    # send payloads to address without waf
+    results = src.utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host, args.port, payloads)
+    formatted_results = json.dumps(results, indent=4,ensure_ascii=False)
+    logger.debug(TAG + "==>results: " + formatted_results)
+    for result in results:
+        if result['response_status_code'] == 200:
+            logger.info(TAG + "==>url: " + result['url'] + " success")
+        else:
+            if result['response_text'] is not None:
+                logger.warning(TAG + "==>url: " + result['url'] + " failed" + " response: " + result['response_text'])
+            else:
+                logger.warning(TAG + "==>url: " + result['url'] + " failed")
+    # send payloads to address with waf
+    if args.mutant:
+        results = src.utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host, args.port, payloads, waf=True, PAYLOAD_MUTANT_ENABLED=True, enable_shortcut=enable_shortcut, rl=args.rl)
+    else:
+        results = src.utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host, args.port, payloads, waf=True, PAYLOAD_MUTANT_ENABLED=False, enable_shortcut=enable_shortcut)
+
+    deduplicate_results(results)
+    generate_statistic(results)
+    update_memory(results)
+
+
 if __name__ == "__main__":
     logger.info(TAG + "************************ start *****************************")
     T1 = time.perf_counter()  # 计时
 
-    main()
+    args = parse_arguments()
+    main(args)
 
     T2 = time.perf_counter()  # 计时结束
     logger.info(TAG + "************************* end ******************************")
 
-
-
+    # 打印程序配置
+    logger.info(TAG + '程序配置: %s' % args)
     # 打印程序耗时
     logger.info(TAG+'程序运行时间:%s毫秒' % ((T2 - T1)*1000))
     # 打印日志文件路径，获取log文件夹下最新的日志文件
