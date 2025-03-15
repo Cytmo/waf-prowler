@@ -9,9 +9,9 @@ import urllib.parse
 import uuid
 if __name__ == "__main__":
     import sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
-from utils.logUtils import LoggerSingleton
-from utils.dictUtils import content_types
+    sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
+from src.utils.logUtils import LoggerSingleton
+from src.utils.dictUtils import content_types
 logger = LoggerSingleton().get_logger()
 TAG = "prowler_mutant_methods.py: "
 def mutant_methods_modify_content_type_for_rl(headers, url, method, data, files):
@@ -849,7 +849,7 @@ def mutant_methods_change_charset(headers, url, method, data, files):
         
         # 带空格和特殊字符的变体
         # " application/x-www-form-urlencoded ; charset = utf-8 ",
-        # "multipart/form-data;  boundary = test-boundary ; charset=gb2312 ",
+        # "multipart/form-data;  boundary = test-payloads-boundary ; charset=gb2312 ",
     ]
     weights = [0.58] + [0.07] * 6
     content_type=random.choices(content_type_variations,weights=weights)[0]

@@ -7,8 +7,8 @@ __pycache__/
 todo.md
 main
 main.spec
-results/
 result/
+log/
 # C extensions
 *.so
 ppo_waf_bypass_payload_*.zip
@@ -43,7 +43,7 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
+# Unit test-payloads / coverage reports
 htmlcov/
 .tox/
 .nox/

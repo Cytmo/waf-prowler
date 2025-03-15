@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import json
-from utils.logUtils import LoggerSingleton
+from src.utils.logUtils import LoggerSingleton
 import os
 logger = LoggerSingleton().get_logger()
 TAG = "prowler_parse_raw_payload.py: "

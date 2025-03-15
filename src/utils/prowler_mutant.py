@@ -1,15 +1,4 @@
-import copy
-import itertools
-import json
-import os
-import random
-import re
-import urllib.parse
-import uuid
-from stable_baselines3 import DQN
-from utils.logUtils import LoggerSingleton
-from utils.dictUtils import content_types
-from utils.prowler_mutant_methods import *
+from src.utils.prowler_mutant_methods import *
 logger = LoggerSingleton().get_logger()
 TAG = "prowler_mutant.py: "
 # mutant_methods = [mutant_methods_multipart_boundary]
@@ -62,7 +51,7 @@ def dd_mutant(headers,url,method,data,files):
             'files': files_copy
         }
         sub_mutant_payloads.append(sub_mutant_payload)
-    with open("test.json", "w") as f:
+    with open("test-payloads.json", "w") as f:
         content_to_write = []
         for sub_mutant_payload in sub_mutant_payloads:
             print(str(sub_mutant_payload))

@@ -1,19 +1,8 @@
-import os
-import json
-import copy
-import random
-import numpy as np
 import requests
-import itertools
-import re
-import urllib.parse
-from utils.prowler_mutant_methods import *
-import uuid
-if __name__ == "__main__":
-    import sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
-from utils.logUtils import LoggerSingleton
-from utils.dictUtils import content_types
+from src.utils.prowler_mutant_methods import *
+from src.utils.logUtils import LoggerSingleton
+import collections
+
 logger = LoggerSingleton().get_logger()
 TAG = "prowler_mutant.py: "
 
@@ -22,6 +11,7 @@ TAG = "prowler_mutant.py: "
 # mutant_methods = [mutant_methods_add_harmless_command_for_get_request]
 # mutant_methods = [mutant_methods_add_Content_Type_for_get_request]
 # mutant_methods = [mutant_methods_convert_get_to_post]
+
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
 # 奖励函数
@@ -34,7 +24,6 @@ def reward_function(response):
     else:
         return -0.1  # 其他错误状态
 
-import collections
 
 def extract_features(payload):
     # 将payload转换为字符频率统计
@@ -42,17 +31,6 @@ def extract_features(payload):
     # 将字符频率统计转换为固定长度的向量
     feature_vector = [char_freq.get(c, 0) for c in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789']
     return feature_vector
-
-
-
-
-# rl input url+mutant_method
-
-
-
-
-
-
 
 
 # 发送请求的函数
