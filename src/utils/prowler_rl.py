@@ -1,46 +1,20 @@
-import copy
-import itertools
-import json
-import os
-import random
-import re
 import time
-import urllib.parse
-import uuid
-import json
-import os
-import requests
 import http.client
 import gzip
-import torch
 from bs4 import BeautifulSoup
 import io
-from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3 import PPO
 import xml.etree.ElementTree as ET
 from urllib.parse import urlparse
-from requests.models import Request, PreparedRequest, CaseInsensitiveDict
+from requests.models import Request, CaseInsensitiveDict
 import requests
 import gymnasium as gym
-from gymnasium import spaces
 import numpy as np
-from stable_baselines3 import DQN  # 使用适合离散空间的算法
-from stable_baselines3.common.env_checker import check_env
-
-from sklearn.feature_extraction.text import TfidfVectorizer
-if __name__ == "__main__":
-    import sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
-# from utils.prowler_mutant import prowler_begin_to_mutant_payloads
-from utils.prowler_mutant import prowler_begin_to_mutant_payloads
-from utils.prowler_rl_based_mutant import prowler_begin_to_mutant_payloads as rl_based_mutant
-from utils.logUtils import LoggerSingleton
-from utils.recordResUtils import JSONLogger
-from utils.prowler_feature_extract import prowler_feature_extract
-from utils.logUtils import LoggerSingleton
-import utils.prowler_parse_raw_payload
-from utils.dictUtils import content_types
-from utils.prowler_mutant_methods import *
+from src.utils.prowler_feature_extract import prowler_feature_extract
+import src.utils.prowler_parse_raw_payload
+from src.utils.prowler_mutant_methods import *
+from src.utils.logUtils import LoggerSingleton
+import sys
 
 # Logger
 logger = LoggerSingleton().get_logger()
@@ -51,6 +25,7 @@ TAG = "prowler_rl_based_mutant.py: "
 SELF_MAX_STEPS = 20
 MAX_TIME_STEPS = 35000
 
+
 def handle_json_response(response):
     try:
         data = json.loads(response.read().decode('utf-8'))
@@ -58,6 +33,7 @@ def handle_json_response(response):
     except json.JSONDecodeError:
         logger.warning(TAG + "==> 响应数据不是有效的 JSON 格式")
         return "解析响应失败"
+
 
 def handle_html_response(response):
     try:
@@ -82,6 +58,7 @@ def handle_html_response(response):
         logger.warning(TAG + f"==> 处理 HTML 响应时出错: {e}")
         return None
 
+
 def handle_xml_response(response):
     try:
         xml_content = response.read().decode('utf-8')
@@ -102,6 +79,7 @@ def handle_gzip_response(response):
         logger.warning(TAG + f"==> 解压缩 Gzip 数据时出错: {e}")
         return "解析响应失败"
 
+
 def handle_text_response(response):
     try:
         text_content = response.read().decode('utf-8')
@@ -109,7 +87,6 @@ def handle_text_response(response):
     except UnicodeDecodeError:
         logger.warning(TAG + "==> 响应数据不是有效的文本格式")
         return "解析响应失败"
-
 
 
 def parse_response(response):
@@ -131,18 +108,19 @@ def parse_response(response):
     else:
         logger.warning(TAG + "==>Unknown response data format, content type: " + content_type)
         data = "解析响应失败"
-    logger.info(TAG + "==>parsed data: " + str(data)+ "content_type is: " + content_type)
+    logger.info(TAG + "==>parsed data: " + str(data) + "content_type is: " + content_type)
 
     return data
+
 
 def send_requests(prep_request, timeout=0.1):
     url = urlparse(prep_request.get('url'))
     logger.debug(TAG + "==>url: " + str(prep_request.get('url')))
     # 创建 HTTP 连接并设置超时
     conn = http.client.HTTPConnection(url.netloc, timeout=timeout)
-    
+
     try:
-        
+
         # 获取 URL 和 body 并确保 body 为字节类型
         body = prep_request.get('body')
         # 确保 body 为字节类型
@@ -150,7 +128,7 @@ def send_requests(prep_request, timeout=0.1):
             body = str(body).encode('utf-8')  # 将字典转换为字符串并编码为字节
         elif isinstance(body, str):
             body = body.encode('utf-8')  # 将字符串编码为字节
-        conn.request(prep_request.get('method'), url.path,body=body, headers=prep_request.get('headers'))
+        conn.request(prep_request.get('method'), url.path, body=body, headers=prep_request.get('headers'))
     except Exception as e:
         logger.error(TAG + "==>error in sending request: " + str(e))
         logger.warning(TAG + "==>payload: " + str(prep_request))
@@ -162,7 +140,7 @@ def send_requests(prep_request, timeout=0.1):
         response = requests.Response()
         # raise e
         return response
-    
+
     try:
         # 获取响应，超时将导致异常
         response = conn.getresponse()
@@ -174,11 +152,11 @@ def send_requests(prep_request, timeout=0.1):
     # 记录响应状态
     temp_log = f"Response status: {response.status} {response.reason} {response.msg}"
     logger.info(TAG + temp_log)
-    
+
     # 读取响应体内容
     response_body = parse_response(response)
     logger.info(TAG + str(response_body))
-    
+
     # 将响应内容赋值给 response
     response.text = response_body
     response.status_code = response.status
@@ -186,6 +164,7 @@ def send_requests(prep_request, timeout=0.1):
     # 关闭连接
     conn.close()
     return response
+
 
 def process_requests(headers, url, method, data=None, files=None):
     if method == 'JSON_POST':
@@ -257,7 +236,7 @@ def run_payload(payload, host=None, port=None, waf=True):
             'payload': str(payload),
             'response_status_code': response.status_code,
             'response_text': response.text,
-            'success':''
+            'success': ''
         }
     else:
         result = {
@@ -266,9 +245,10 @@ def run_payload(payload, host=None, port=None, waf=True):
             'payload': str(payload),
             'response_status_code': "Error",
             'response_text': "Error",
-            'success':''
+            'success': ''
         }
     return result
+
 
 # 获取启用的变异方法
 enabled_mutant_methods = [
@@ -286,6 +266,8 @@ deep_mutant_methods = [
     (name, func) for name, (func, enabled) in deep_mutant_methods_config.items() if enabled
 ]
 logger.warning(TAG + "Deep Mutant Methods: " + str(deep_mutant_methods))
+
+
 # 发送请求的函数
 def send_request(url, method, headers, data, files):
     try:
@@ -304,10 +286,11 @@ def send_request(url, method, headers, data, files):
         logger.warning(TAG + "==> 发送请求时出错: " + str(e))
         return 0
 
+
 class WAFBypassEnv(gym.Env):
     def __init__(self, enabled_methods, payload_for_rl):
         super(WAFBypassEnv, self).__init__()
-        
+
         self.initial_payload = self._initialize_payload(payload_for_rl)
         self.payload = copy.deepcopy(self.initial_payload)
         if 'headers' not in self.payload or 'url' not in self.payload or 'method' not in self.payload:
@@ -400,7 +383,6 @@ class WAFBypassEnv(gym.Env):
         # 应用时间衰减到动作执行次数
         decayed_action_counts = self.action_execution_counts / (1 + self.current_step)
 
-
         # 计算动作成功率
         total_counts = self.action_success_counts + self.action_failure_counts + 1e-5  # 防止除以零
         action_success_rate = self.action_success_counts / total_counts
@@ -478,16 +460,17 @@ class WAFBypassEnv(gym.Env):
         logger.warning("Applying special mutation method.")
         payload_to_mutate = copy.deepcopy(self.payload)
         special_method_name, special_method_func = deep_mutant_methods[0]
-        headers, url, method, data = payload_to_mutate.get('headers'), payload_to_mutate.get('url'), payload_to_mutate.get('method'), payload_to_mutate.get('body')    
+        headers, url, method, data = payload_to_mutate.get('headers'), payload_to_mutate.get(
+            'url'), payload_to_mutate.get('method'), payload_to_mutate.get('body')
         try:
-            headers, url, method, data,files ,res= special_method_func(
+            headers, url, method, data, files, res = special_method_func(
                 headers,
                 url,
                 method,
                 data,
                 None
             )
-            payloads= []
+            payloads = []
             payloads.append({
                 'headers': headers,
                 'url': url,
@@ -582,7 +565,7 @@ class WAFBypassEnv(gym.Env):
                     reward -= 1.5
                 else:
                     reward -= 1.1
-              # 增加对动作多样性的奖励
+                # 增加对动作多样性的奖励
 
                 # 更新动作失败计数
                 if self.last_action >= 0 and self.last_action < self.total_methods:
@@ -606,10 +589,13 @@ class WAFBypassEnv(gym.Env):
     def get_current_used_methods(self):
         return self.action_execution_counts
 
-LOAD_NUM =0
+
+LOAD_NUM = 0
+
+
 def initialize_model(payload, enabled_mutant_methods, model_path="ppo_waf_bypass"):
     """初始化模型，如果已存在则加载模型，否则创建新模型"""
-    global  LOAD_NUM
+    global LOAD_NUM
     try:
         if not os.path.exists(model_path):
             # 尝试加载最新的中间模型
@@ -638,6 +624,7 @@ def initialize_model(payload, enabled_mutant_methods, model_path="ppo_waf_bypass
         model = create_new_model(env)
     return model
 
+
 def create_new_model(env):
     """创建新的 PPO 模型"""
 
@@ -650,13 +637,13 @@ def create_new_model(env):
     )
 
     # 增加采样步数和调整相关参数
-    n_steps = 4096       # 每次更新前的采样步数
-    batch_size = 256     # 批量大小，应是 n_steps 的约数
-    n_epochs = 10        # 每次更新的迭代次数
+    n_steps = 4096  # 每次更新前的采样步数
+    batch_size = 256  # 批量大小，应是 n_steps 的约数
+    n_epochs = 10  # 每次更新的迭代次数
 
-    #熵损失
+    # 熵损失
     ENTROPY_LOSS = 0.005
-    LEARNING_RATE = 0.001 
+    LEARNING_RATE = 0.001
 
     return PPO(
         "MlpPolicy",
@@ -670,7 +657,9 @@ def create_new_model(env):
         verbose=1,
         device="cuda"
     )
-def train_model(model,payloads, enabled_mutant_methods, total_timesteps=MAX_TIME_STEPS):
+
+
+def train_model(model, payloads, enabled_mutant_methods, total_timesteps=MAX_TIME_STEPS):
     """遍历 payloads 并逐个训练模型"""
     global LOAD_NUM
     for i, payload_for_rl in enumerate(payloads):
@@ -678,11 +667,11 @@ def train_model(model,payloads, enabled_mutant_methods, total_timesteps=MAX_TIME
         #     logger.warning(f"Converting GET request to POST: {payload_for_rl.url}")
         #     payload_to_convert = copy.deepcopy(payload_for_rl)
         #     headers, url, method, data = payload_to_convert.headers, payload_to_convert.url, payload_to_convert.method, payload_to_convert.body
-            # headers, url, method, data,files,res = mutant_methods_change_request_method(headers, url, method, data, None)
-            # payload_for_rl.headers = headers
-            # payload_for_rl.url = url
-            # payload_for_rl.method = method
-            # payload_for_rl.body = data
+        # headers, url, method, data,files,res = mutant_methods_change_request_method(headers, url, method, data, None)
+        # payload_for_rl.headers = headers
+        # payload_for_rl.url = url
+        # payload_for_rl.method = method
+        # payload_for_rl.body = data
 
         if i < LOAD_NUM:
             logger.warning(f"Skip payload {i + 1}/{len(payloads)}")
@@ -779,7 +768,7 @@ def test_model(model, env):
     while not done and total_steps < max_steps:
         action, _ = model.predict(obs, deterministic=False)
         obs, reward, done, truncated, info = env.step(action)
-        
+
         # 假设正奖励表示生成有效载荷
         if reward > 0:
             successful_payloads.append(env.get_payload())
@@ -794,7 +783,7 @@ def test_model(model, env):
 
         # 如果达到正总奖励，则提前结束
         if total_reward > 0:
-            print("Positive total reward achieved, ending test.")
+            print("Positive total reward achieved, ending test-payloads.")
             break
 
     print(f"Total Reward: {total_reward}")
@@ -863,9 +852,8 @@ def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=No
     logger.warning(TAG + "==> Begin mutating payloads with RL")
     mutant_payloads = []
     if method == 'GET':
-        headers, url, method, data,files,res = mutant_methods_change_request_method(headers, url, method, data, files)
+        headers, url, method, data, files, res = mutant_methods_change_request_method(headers, url, method, data, files)
         logger.warning(f"Converting GET request to POST: {url}, result: {res}")
-        
 
     # 创建一个符合 WAFBypassEnv 要求的字典结构
     payload_for_rl = {
@@ -882,41 +870,41 @@ def prowler_begin_to_mutant_payload_with_rl(headers, url, method, data, files=No
         # 创建环境并重置，获取初始观察
         env = WAFBypassEnv(enabled_mutant_methods, payload_for_rl)
         obs, _ = env.reset()
-        
+
         done = False
         total_reward = 0
         total_steps = 0
-        
+
         # 使用模型进行推理，直到成功绕过 WAF 或达到最大步骤数
         while not done:
             # 使用模型预测下一个动作
             action, _states = model.predict(obs, deterministic=False)
-            
+
             # 执行动作，获取新的状态和奖励
             obs, reward, done, truncated, info = env.step(action)
             total_reward += reward
             total_steps += 1
-            
+
             # 仅保留奖励为 100 的 payload
             if reward > 1:
                 payload = env.get_payload()
                 mutant_payloads.append(copy.deepcopy(payload))
                 logger.info("Added payload with reward 100 to mutant_payloads")
-                
+
                 # 在 "first" 模式下，找到一个成功的 payload 就直接返回
                 if mode == "first":
                     return mutant_payloads
                 # 在 "all" 模式下，找到多个成功的 payload 后继续尝试
                 break
-            
+
             if total_steps >= 5:
                 # done = True
                 break
-            
+
             logger.debug(f"Attempt {attempt + 1}, Action: {action}, Reward: {reward}")
-        
+
         logger.info(f"Attempt {attempt + 1}, Total Reward: {total_reward}")
-    
+
     # 返回奖励为 100 的 payload 列表
     return mutant_payloads
 
@@ -937,29 +925,28 @@ if __name__ == "__main__":
         logger.setLevel("CRITICAL")
 
     # 加载并解析 payloads
-    payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload("config/payload1/json")
-
+    payloads = src.utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload("config/payload1/json")
 
     payloads_processed = []
     for payload in payloads:
-        new_payload = process_requests(   
+        new_payload = process_requests(
             payload['headers'],
             payload['url'],
             payload['method'],
             payload.get('data', None),
             payload.get('files', None)
-            )
+        )
         payloads_processed.append(new_payload)
-    if "--test" in sys.argv:
+    if "--test-payloads" in sys.argv:
         print("Testing model on payload " + payloads_processed[0].url)
         test_env = WAFBypassEnv(enabled_mutant_methods, payloads_processed[0])
         model = PPO.load("ppo_waf_bypass", device="cuda")
         test_model(model, test_env)
-        exit()    # 初始化模型
+        exit()  # 初始化模型
 
     model = initialize_model(payloads_processed[0], enabled_mutant_methods)
     # 训练模型
-    train_model(model,payloads_processed, enabled_mutant_methods, total_timesteps=MAX_TIME_STEPS)
+    train_model(model, payloads_processed, enabled_mutant_methods, total_timesteps=MAX_TIME_STEPS)
 
     # 测试模型
     # 对所有的payload进行测试
@@ -968,4 +955,3 @@ if __name__ == "__main__":
         model = PPO.load("ppo_waf_bypass", device="cuda")
         logger.warning(f"Testing on payload {i + 1}/{len(payloads_processed)}")
         test_model(model, test_env)
-
