@@ -1,3 +1,4 @@
+import os
 import time
 import http.client
 import gzip
@@ -10,10 +11,10 @@ from requests.models import Request, CaseInsensitiveDict
 import requests
 import gymnasium as gym
 import numpy as np
-from src.utils.prowler_feature_extract import prowler_feature_extract
-import src.utils.prowler_parse_raw_payload
-from src.utils.prowler_mutant_methods import *
-from src.utils.logUtils import LoggerSingleton
+from utils.prowler_feature_extract import prowler_feature_extract
+import utils.prowler_parse_raw_payload
+from utils.prowler_mutant_methods import *
+from utils.logUtils import LoggerSingleton
 import sys
 
 # Logger
@@ -925,7 +926,7 @@ if __name__ == "__main__":
         logger.setLevel("CRITICAL")
 
     # 加载并解析 payloads
-    payloads = src.utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload("config/payload1/json")
+    payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload("config/payload1/json")
 
     payloads_processed = []
     for payload in payloads:

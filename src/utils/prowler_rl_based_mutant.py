@@ -1,6 +1,6 @@
 import requests
-from src.utils.prowler_mutant_methods import *
-from src.utils.logUtils import LoggerSingleton
+from utils.prowler_mutant_methods import *
+from utils.logUtils import LoggerSingleton
 import collections
 
 logger = LoggerSingleton().get_logger()

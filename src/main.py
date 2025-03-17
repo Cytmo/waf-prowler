@@ -3,11 +3,12 @@ import hashlib
 import json
 import os
 import re
+import socket
 import time
 
-from src.utils.logUtils import LoggerSingleton
-import src.utils.prowler_parse_raw_payload
-import src.utils.prowler_process_requests
+from utils.logUtils import LoggerSingleton
+import utils.prowler_parse_raw_payload
+import utils.prowler_process_requests
 
 
 logger = LoggerSingleton().get_logger()
@@ -26,11 +27,11 @@ def parse_arguments():
                           choices=["true", "false"], help="Enable multiprocess")
     parser.add_argument("-r", "--raw", default="config/payload/json", help="Path to raw payload files")
     parser.add_argument("--host",  default="localhost", help="Target host ip")
-    parser.add_argument("--port", default="8001", help="Target port")
+    parser.add_argument("--port", default=8001, type=int, help="Target port")
 
     parser.add_argument("--test-payloads", help="Use test-payloads payload", action="store_true")
     parser.add_argument("--disable-memory", help="Disable memory", action="store_true")
-    parser.add_argument("-w", "--wsl", default="true", choices=["true", "false"], action="store_true", help="Use wsl")
+    parser.add_argument("-w", "--wsl", default="true", action="store_true", help="Use wsl")
     parser.add_argument("-m", "--mutant", help="Use mutant", action="store_true")
     parser.add_argument("-ds", "--disable-shortcut",
                           help="Disable shortcut, which will end exec when has any successful payload",
@@ -168,16 +169,38 @@ def update_memory(results):
     logger.info(f"{TAG} ==> Updated 'memory.json' with new entries.")
 
 
+def check_url_reachable(host, port):
+    """
+    检查目标网址是否可达
+    """
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)  # 设置超时时间为5秒
+        sock.connect((host, port))
+        sock.close()
+        return True
+    except socket.error:
+        return False
+
+
 def main(args):
     configure_settings(args)
+    # 判断目标网址是否可达，不可达则不测试
+    if not check_url_reachable(args.host, args.port):
+        logger.error(TAG + "==>Target website is unreachable, please use --host and --port to "
+                           "specify the target address.")
+        return
+    logger.info(TAG + "==>Target website: " + args.host + ":" + str(args.port))
+
     # read raw payload folder
     logger.info(TAG + "==>raw payload folder: " + args.raw)
     if args.plain:
-        payloads = src.utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload(args.raw, plain=True)
+        payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload(args.raw, plain=True)
     else:
-        payloads = src.utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload(args.raw)
+        payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload(args.raw)
     # send payloads to address without waf
-    results = src.utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host, args.port, payloads)
+
+    results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host, args.port, payloads)
     formatted_results = json.dumps(results, indent=4,ensure_ascii=False)
     logger.debug(TAG + "==>results: " + formatted_results)
     for result in results:
@@ -190,9 +213,9 @@ def main(args):
                 logger.warning(TAG + "==>url: " + result['url'] + " failed")
     # send payloads to address with waf
     if args.mutant:
-        results = src.utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host, args.port, payloads, waf=True, PAYLOAD_MUTANT_ENABLED=True, enable_shortcut=enable_shortcut, rl=args.rl)
+        results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host, args.port, payloads, waf=True, PAYLOAD_MUTANT_ENABLED=True, enable_shortcut=enable_shortcut, rl=args.rl)
     else:
-        results = src.utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host, args.port, payloads, waf=True, PAYLOAD_MUTANT_ENABLED=False, enable_shortcut=enable_shortcut)
+        results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host, args.port, payloads, waf=True, PAYLOAD_MUTANT_ENABLED=False, enable_shortcut=enable_shortcut)
 
     deduplicate_results(results)
     generate_statistic(results)
@@ -214,7 +237,7 @@ if __name__ == "__main__":
     # 打印程序耗时
     logger.info(TAG+'程序运行时间:%s毫秒' % ((T2 - T1)*1000))
     # 打印日志文件路径，获取log文件夹下最新的日志文件
-    newest_log_file = sorted([os.path.join("../log", f) for f in os.listdir("../log")], key=os.path.getctime)[-1]
+    newest_log_file = sorted([os.path.join("./log", f) for f in os.listdir("./log")], key=os.path.getctime)[-1]
     logger.info(TAG + "日志文件路径: %s" % newest_log_file)
     try:
         # 打印结果文件路径，获取result文件夹下最新的结果文件

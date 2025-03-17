@@ -1,4 +1,5 @@
-from src.utils.prowler_mutant_methods import *
+from utils.prowler_mutant_methods import *
+from utils.logUtils import LoggerSingleton
 logger = LoggerSingleton().get_logger()
 TAG = "prowler_mutant.py: "
 # mutant_methods = [mutant_methods_multipart_boundary]
