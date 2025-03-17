@@ -1,7 +1,12 @@
+import copy
+import json
+import os
+import random
 import requests
+import collections
+
 from utils.prowler_mutant_methods import *
 from utils.logUtils import LoggerSingleton
-import collections
 
 logger = LoggerSingleton().get_logger()
 TAG = "prowler_mutant.py: "
@@ -14,6 +19,8 @@ TAG = "prowler_mutant.py: "
 
 # 上传载荷变异方法
 mutant_methods_dedicated_to_upload = []
+
+
 # 奖励函数
 def reward_function(response):
     logger.info(TAG + "==>reward_function, response status code: " + str(response.status_code))
@@ -47,6 +54,7 @@ def send_request(headers, url, method, data, files):
         raise ValueError("Unsupported HTTP method: " + method)
     return response
 
+
 # 强化学习Agent
 class RLAgent:
     def __init__(self, mutant_methods, reward_function):
@@ -72,8 +80,9 @@ class RLAgent:
         next_q_values = [self.q_table.get((tuple(next_state_vector), method), 0) for method in self.mutant_methods]
         max_next_q_value = max(next_q_values)
         self.q_table[(tuple(state_vector), action)] = q_value + 0.1 * (reward + 0.9 * max_next_q_value - q_value)
-        
-def prowler_begin_to_mutant_payloads(headers, url, method, data, files=None, memory=None, deep_mutant=False, dd_enabled=False):
+
+
+def prowler_begin_to_mutant_payloads(headers, url, method, data, files=None, deep_mutant=False):
     logger.info(TAG + "==>begin to mutant payloads")
 
     url_backup = copy.deepcopy(url)
@@ -108,7 +117,8 @@ def prowler_begin_to_mutant_payloads(headers, url, method, data, files=None, mem
 
     if deep_mutant:
         logger.info(TAG + "==>deep mutant")
-        headers, url, method, data, files, success = mutant_methods_change_request_method(headers, url, method, data, files)
+        headers, url, method, data, files, success = mutant_methods_change_request_method(headers, url, method, data,
+                                                                                          files)
         if not success:
             return []
 
@@ -183,6 +193,7 @@ def prowler_begin_to_mutant_payloads(headers, url, method, data, files=None, mem
         payload['original_url'] = url_backup
 
     return mutant_payloads
+
 
 if __name__ == "__main__":
     headers = {

@@ -7,8 +7,10 @@ import atexit
 logger = LoggerSingleton().get_logger()
 TAG = 'recordResUtils'
 
+
 class JSONLogger:
     def __init__(self, directory='result'):
+        self.file_name = None
         self.directory = directory
         # 创建存放日志的文件夹（如果不存在）
         if not os.path.exists(self.directory):

@@ -7,8 +7,8 @@ import socket
 import time
 
 from utils.logUtils import LoggerSingleton
-import utils.prowler_parse_raw_payload
-import utils.prowler_process_requests
+from utils.prowler_parse_raw_payload import prowler_begin_to_sniff_payload
+from utils.prowler_process_requests import prowler_begin_to_send_payloads
 
 
 logger = LoggerSingleton().get_logger()
@@ -106,7 +106,7 @@ def generate_statistic(results):
         if url not in url_attempts:
             url_attempts[url] = {'attempts': 0, 'success': 0}
         url_attempts[url]['attempts'] += 1
-        if result['success'] == True:
+        if result['success']:
             url_attempts[url]['success'] += 1
 
     for url, attempts in url_attempts.items():
@@ -195,13 +195,13 @@ def main(args):
     # read raw payload folder
     logger.info(TAG + "==>raw payload folder: " + args.raw)
     if args.plain:
-        payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload(args.raw, plain=True)
+        payloads = prowler_begin_to_sniff_payload(args.raw, plain=True)
     else:
-        payloads = utils.prowler_parse_raw_payload.prowler_begin_to_sniff_payload(args.raw)
+        payloads = prowler_begin_to_sniff_payload(args.raw)
     # send payloads to address without waf
 
-    results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host, args.port, payloads)
-    formatted_results = json.dumps(results, indent=4,ensure_ascii=False)
+    results = prowler_begin_to_send_payloads(args.host, args.port, payloads)
+    formatted_results = json.dumps(results, indent=4, ensure_ascii=False)
     logger.debug(TAG + "==>results: " + formatted_results)
     for result in results:
         if result['response_status_code'] == 200:
@@ -213,9 +213,11 @@ def main(args):
                 logger.warning(TAG + "==>url: " + result['url'] + " failed")
     # send payloads to address with waf
     if args.mutant:
-        results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host, args.port, payloads, waf=True, PAYLOAD_MUTANT_ENABLED=True, enable_shortcut=enable_shortcut, rl=args.rl)
+        results = prowler_begin_to_send_payloads(args.host, args.port, payloads, waf=True, PAYLOAD_MUTANT_ENABLED=True,
+                                                 enable_shortcut=enable_shortcut, rl=args.rl)
     else:
-        results = utils.prowler_process_requests.prowler_begin_to_send_payloads(args.host, args.port, payloads, waf=True, PAYLOAD_MUTANT_ENABLED=False, enable_shortcut=enable_shortcut)
+        results = prowler_begin_to_send_payloads(args.host, args.port, payloads, waf=True, PAYLOAD_MUTANT_ENABLED=False,
+                                                 enable_shortcut=enable_shortcut)
 
     deduplicate_results(results)
     generate_statistic(results)
