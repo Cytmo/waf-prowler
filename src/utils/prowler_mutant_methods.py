@@ -10,8 +10,8 @@ import uuid
 if __name__ == "__main__":
     import sys
     sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
-from src.utils.logUtils import LoggerSingleton
-from src.utils.dictUtils import content_types
+from utils.logUtils import LoggerSingleton
+from utils.dictUtils import content_types
 logger = LoggerSingleton().get_logger()
 TAG = "prowler_mutant_methods.py: "
 def mutant_methods_modify_content_type_for_rl(headers, url, method, data, files):

@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime
-from src.utils.logUtils import LoggerSingleton
+from utils.logUtils import LoggerSingleton
 import atexit
 
 logger = LoggerSingleton().get_logger()
