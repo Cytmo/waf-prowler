@@ -1590,6 +1590,38 @@ def get_weighted_mutant_methods(mutant_methods_config):
 
     return mutant_methods
 
+def mutant_methods_header_pollution(headers, url, method, data, files):
+    """
+    向请求头中注入重复或冲突的头部字段，尝试引发服务器和WAF解析不一致
+    """
+    logger.info(TAG + "==>mutant_methods_header_pollution")
+    logger.debug(TAG + "==>headers: " + str(headers))
+    mutant_payloads = []
+
+    # 复制原始headers，避免直接修改
+    polluted_headers = copy.deepcopy(headers)
+
+    # 添加重复的 Content-Length 或 Transfer-Encoding
+    pollution_variants = [
+        ("Content-Length", "0"),  # 重复Content-Length
+        ("Transfer-Encoding", "chunked"),  # 添加Transfer-Encoding
+        ("X-Ignore-This", "ignore"),  # 添加无用header
+        ("Content-Length", "9999"),  # 不同值的重复
+    ]
+
+    # 注入多组冲突header
+    for header_name, header_value in pollution_variants:
+        modified_headers = copy.deepcopy(polluted_headers)
+        modified_headers[header_name] = header_value
+        mutant_payloads.append({
+            'headers': modified_headers,
+            'url': url,
+            'method': method,
+            'data': data,
+            'files': files
+        })
+
+    return mutant_payloads
 
 '''
 ALL MUTANT METHODS:
