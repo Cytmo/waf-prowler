@@ -1624,6 +1624,9 @@ def mutant_methods_header_pollution(headers, url, method, data, files):
     return mutant_payloads
 
 def mutant_methods_header_injection(headers, url, method, data, files):
+    """
+    通过在 header 中注入额外的伪造 header 行来混淆 WAF 检测
+    """
     logger.info(TAG + "==>mutant_methods_header_injection")
     mutant_payloads = []
 
