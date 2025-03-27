@@ -1623,6 +1623,22 @@ def mutant_methods_header_pollution(headers, url, method, data, files):
 
     return mutant_payloads
 
+def mutant_methods_header_injection(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_header_injection")
+    mutant_payloads = []
+
+    injected_headers = copy.deepcopy(headers)
+    injected_headers["X-Injected-Header"] = "InjectedValue\r\nContent-Length: 0\r\nX-Evil: yes"
+
+    mutant_payloads.append({
+        'headers': injected_headers,
+        'url': url,
+        'method': method,
+        'data': data,
+        'files': files
+    })
+    return mutant_payloads
+
 '''
 ALL MUTANT METHODS:
 mutant_methods_modify_content_type
