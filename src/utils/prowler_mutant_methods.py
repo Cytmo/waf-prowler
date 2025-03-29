@@ -4,6 +4,7 @@ import itertools
 import json
 import os
 import random
+import string 
 import re
 import urllib.parse
 import uuid
@@ -743,6 +744,66 @@ def mutant_methods_line_breaks(headers, url, method, data, files):
 
     return mutant_payloads
 
+
+def mutant_methods_add_random_harmless_param(headers, url, method, data, files):
+    logger.info(TAG + "==>mutant_methods_add_random_harmless_param")
+    # 生成随机参数名和值
+    param_name = ''.join(random.choices(string.ascii_lowercase, k=5))
+    param_value = ''.join(random.choices(string.ascii_lowercase, k=10))
+    if method == 'GET':
+        if '?' in url:
+            url = url + f'&{param_name}={param_value}'
+        else:
+            url = url + f'?{param_name}={param_value}'
+    elif method == 'POST':
+        if isinstance(data, dict):
+            data[param_name] = param_value
+
+    mutant_payloads=[{
+        'headers': new_headers,
+        'url': url,
+        'method': method,
+        'data': data,
+        'files': files
+    }]
+    logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
+    
+    return mutant_payloads
+
+
+# 常见的 User-Agent 列表
+COMMON_USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15",
+    "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+    "Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com/bingbot.htm)"
+]
+
+def mutant_methods_modify_user_agent(headers, url, method, data, files):
+    """ 修改请求头中的 User-Agent 为常见的浏览器或爬虫的 User-Agent """
+    logger.info(TAG + "==>mutant_methods_modify_user_agent")
+    mutant_payloads = []
+
+    # 复制原始的 headers
+    new_headers = headers.copy()
+
+    # 随机选择一个 User-Agent
+    new_user_agent = random.choice(COMMON_USER_AGENTS)
+    new_headers['User-Agent'] = new_user_agent
+
+    mutant_payloads.append({
+        'headers': new_headers,
+        'url': url,
+        'method': method,
+        'data': data,
+        'files': files
+    })
+
+    logger.debug(TAG + "==>mutant_payloads: " + str(mutant_payloads))
+    return mutant_payloads
+    
 
 def mutant_methods_for_test_use(headers, url, method, data, files):
     logger.info(TAG + "==>mutant_methods_for_test_use")
@@ -1703,6 +1764,8 @@ mutant_methods_newline_obfuscation
 mutant_methods_tab_obfuscation
 mutant_methods_garbage_character_obfuscation
 mutant_methods_mutate_headers
+mutant_methods_add_random_harmless_param
+mutant_methods_modify_user_agent
 '''
 # 为变异方法添加开关
 mutant_methods_config = {
@@ -1740,6 +1803,8 @@ mutant_methods_config = {
     "mutant_methods_tab_obfuscation": (mutant_methods_tab_obfuscation, True),
     "mutant_methods_garbage_character_obfuscation": (mutant_methods_garbage_character_obfuscation, True),
     "mutant_methods_mutate_headers": (mutant_methods_mutate_headers, True),
+    "mutant_methods_add_random_harmless_param": (mutant_methods_add_random_harmless_param, False),
+    "mutant_methods_modify_user_agent": (mutant_methods_modify_user_agent, False)
 }
 
 # 为变异方法添加开关
@@ -1762,6 +1827,8 @@ mutant_methods_config_for_rl = {
     "mutant_methods_multipart_form_data": (mutant_methods_multipart_form_data, False),  # disabled for RL
     "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation, False),
     "mutant_methods_convert_get_to_post": (mutant_methods_convert_get_to_post, False),
+    "mutant_methods_add_random_harmless_param": (mutant_methods_add_random_harmless_param, False),
+    "mutant_methods_modify_user_agent": (mutant_methods_modify_user_agent, False),
 }
 
 deep_mutant_methods_config = {
@@ -1784,6 +1851,8 @@ deep_mutant_methods_config = {
     "mutant_methods_sql_comment_obfuscation": (mutant_methods_sql_comment_obfuscation, False),
     "mutant_methods_convert_get_to_post": (mutant_methods_convert_get_to_post, False),
     "mutant_methods_change_request_method": (mutant_methods_change_request_method, True),
+    "mutant_methods_modify_user_agent": (mutant_methods_modify_user_agent, False),
+    "mutant_methods_add_random_harmless_param": (mutant_methods_add_random_harmless_param, False),
 }
 
 
